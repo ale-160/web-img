@@ -13,10 +13,9 @@ interface PresetManagerModalProps {
 }
 
 export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }: PresetManagerModalProps) {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editNameEn, setEditNameEn] = useState('');
   const [editWidth, setEditWidth] = useState<string>('');
   const [editHeight, setEditHeight] = useState<string>('');
 
@@ -49,22 +48,17 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
     onPresetsChange([...presets, newPreset]);
     setEditingId(newId);
     setEditName(`新预设${nextNum}`);
-    setEditNameEn(`New Preset ${nextNum}`);
     setEditWidth('1080');
     setEditHeight('1080');
   }, [presets, getNextPresetNumber, onPresetsChange]);
 
   const handleDelete = useCallback((id: string) => {
-    const preset = presets.find(p => p.id === id);
-    if (preset?.isDefaultPreset) return; // 系统默认预设不能删除
     onPresetsChange(presets.filter(p => p.id !== id));
   }, [presets, onPresetsChange]);
 
   const handleEdit = useCallback((preset: SizePreset) => {
-    if (preset.isDefaultPreset) return; // 系统默认预设不能编辑
     setEditingId(preset.id);
     setEditName(preset.name);
-    setEditNameEn(preset.nameEn);
     setEditWidth(preset.width?.toString() || '');
     setEditHeight(preset.height?.toString() || '');
   }, []);
@@ -75,25 +69,23 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
         return {
           ...p,
           name: editName,
-          nameEn: editNameEn,
+          nameEn: editName,
           width: editWidth ? Number(editWidth) : undefined,
           height: editHeight ? Number(editHeight) : undefined,
           label: editName,
-          labelEn: editNameEn,
+          labelEn: editName,
         };
       }
       return p;
     }));
     setEditingId(null);
-  }, [presets, editName, editNameEn, editWidth, editHeight, onPresetsChange]);
+  }, [presets, editName, editWidth, editHeight, onPresetsChange]);
 
   const handleCancel = useCallback(() => {
     setEditingId(null);
   }, []);
 
   const handleToggleFixed = useCallback((id: string) => {
-    const preset = presets.find(p => p.id === id);
-    if (preset?.isDefaultPreset) return; // 系统默认预设不能取消固定
     onPresetsChange(presets.map(p => {
       if (p.id === id) {
         return { ...p, fixed: !p.fixed };
@@ -126,7 +118,10 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                 {editingId === preset.id ? (
                   <>
                     <div className="flex-1 space-y-3">
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground w-12 shrink-0">
+                          {language === 'zh' ? '名称' : 'Name'}
+                        </span>
                         <input
                           type="text"
                           value={editName}
@@ -134,17 +129,10 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                           placeholder={language === 'zh' ? '预设名称' : 'Preset Name'}
                           className="flex-1 px-2 py-1 border border-border rounded text-sm bg-background"
                         />
-                        <input
-                          type="text"
-                          value={editNameEn}
-                          onChange={(e) => setEditNameEn(e.target.value)}
-                          placeholder="English"
-                          className="flex-1 px-2 py-1 border border-border rounded text-sm bg-background"
-                        />
                       </div>
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground w-16 shrink-0">
+                          <span className="text-sm text-muted-foreground w-12 shrink-0">
                             {language === 'zh' ? '宽度' : 'Width'}
                           </span>
                           <input
@@ -156,7 +144,7 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                           />
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground w-16 shrink-0">
+                          <span className="text-sm text-muted-foreground w-12 shrink-0">
                             {language === 'zh' ? '高度' : 'Height'}
                           </span>
                           <input
@@ -172,7 +160,6 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                     <button
                       onClick={() => handleSave(preset.id)}
                       className="p-2 rounded bg-primary text-primary-foreground"
-                      disabled={preset.isDefaultPreset}
                     >
                       <Check className="w-4 h-4" />
                     </button>
@@ -188,11 +175,6 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                     <div className="flex-1">
                       <div className="font-medium">
                         {language === 'zh' ? preset.name : preset.nameEn}
-                        {preset.isDefaultPreset && (
-                          <span className="ml-2 text-xs text-primary">
-                            {language === 'zh' ? '(默认)' : '(Default)'}
-                          </span>
-                        )}
                       </div>
                       {preset.width && preset.height && (
                         <div className="text-sm text-muted-foreground">
@@ -202,27 +184,22 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                     </div>
                     <button
                       onClick={() => handleToggleFixed(preset.id)}
-                      className={`p-2 rounded hover:bg-muted/70 ${preset.fixed ? 'text-yellow-600' : ''} ${preset.isDefaultPreset ? 'cursor-not-allowed opacity-70' : ''}`}
-                      disabled={preset.isDefaultPreset}
+                      className={`p-2 rounded hover:bg-muted/70 ${preset.fixed ? 'text-yellow-600' : ''}`}
                     >
                       {preset.fixed ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
                     </button>
-                    {!preset.isDefaultPreset && (
-                      <>
-                        <button
-                          onClick={() => handleEdit(preset)}
-                          className="p-2 rounded hover:bg-muted"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(preset.id)}
-                          className="p-2 rounded hover:bg-destructive hover:text-destructive-foreground"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
+                    <button
+                      onClick={() => handleEdit(preset)}
+                      className="p-2 rounded hover:bg-muted"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(preset.id)}
+                      className="p-2 rounded hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </>
                 )}
               </div>

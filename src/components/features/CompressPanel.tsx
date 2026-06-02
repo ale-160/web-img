@@ -2,12 +2,12 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { compressImage, ImageFormat, IMAGE_FORMATS, loadImage, ResizeMode } from '@/utils/canvas';
+import { compressImage, ImageFormat, loadImage, ResizeMode } from '@/utils/canvas';
 import { formatFileSize } from '@/utils/file';
 import { sizePresets, exportFormats, ExportFormat, SizePreset } from '@/data/presets';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { Settings, Crop as CropIcon, Plus, RotateCcw } from 'lucide-react';
+import { Settings, Crop as CropIcon, Plus } from 'lucide-react';
 import { PresetManagerModal } from '@/components/ui/PresetManagerModal';
 import { CropModal } from '@/components/ui/CropModal';
 
@@ -26,7 +26,7 @@ export function CompressPanel({
   imageSize,
   onApply
 }: CompressPanelProps) {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const [quality, setQuality] = useState(100);
   const [maxWidth, setMaxWidth] = useState<number | undefined>(undefined);
   const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
@@ -124,13 +124,13 @@ export function CompressPanel({
 
       const img = await loadImage(compressed);
       onApply(dataUrl, img.width, img.height);
-      toast.success(t('processing') + ' ' + formatFileSize(compressed.size));
+      toast.success(`处理完成 ${formatFileSize(compressed.size)}`);
     } catch (error) {
-      toast.error('Compression failed');
+      toast.error('压缩失败');
     } finally {
       setIsProcessing(false);
     }
-  }, [onApply, t]);
+  }, [onApply]);
 
   const handleFormatClick = useCallback((newFormat: ExportFormat) => {
     setFormat(newFormat);
@@ -263,8 +263,8 @@ export function CompressPanel({
           <div className="space-y-3 mb-3">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">
-                  {language === 'zh' ? '预设宽度' : 'Preset Width'}
+                <span className="text-sm text-muted-foreground w-12 shrink-0">
+                  {language === 'zh' ? '宽度' : 'Width'}
                 </span>
                 <input
                   type="number"
@@ -275,8 +275,8 @@ export function CompressPanel({
                 />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">
-                  {language === 'zh' ? '预设高度' : 'Preset Height'}
+                <span className="text-sm text-muted-foreground w-12 shrink-0">
+                  {language === 'zh' ? '高度' : 'Height'}
                 </span>
                 <input
                   type="number"

@@ -67,38 +67,31 @@ export async function compressImage(
         height = maxHeight;
         width = Math.round(width * ratio);
       }
+      const { canvas, ctx } = createCanvas(width, height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(img.src);
+      return canvasToBlob(canvas, format, quality / 100);
     } else {
       // 裁剪模式
       let finalWidth = maxWidth || width;
       let finalHeight = maxHeight || height;
       
-      let scaleX = finalWidth / width;
-      let scaleY = finalHeight / height;
-      let scale = Math.max(scaleX, scaleY);
-      
-      let scaledWidth = Math.round(width * scale);
-      let scaledHeight = Math.round(height * scale);
-      
-      // 创建中间尺寸的画布
-      const { canvas: tempCanvas, ctx: tempCtx } = createCanvas(scaledWidth, scaledHeight);
-      tempCtx.imageSmoothingEnabled = true;
-      tempCtx.imageSmoothingQuality = 'high';
-      tempCtx.drawImage(img, 0, 0, scaledWidth, scaledHeight);
-      
-      // 创建最终尺寸的画布
+      // 直接从原图裁剪，避免先缩放再裁剪导致的偏移
       const { canvas, ctx } = createCanvas(finalWidth, finalHeight);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       
       // 使用用户提供的裁剪位置，或者默认居中
-      let offsetX = cropX !== undefined ? cropX * scale : (scaledWidth - finalWidth) / 2;
-      let offsetY = cropY !== undefined ? cropY * scale : (scaledHeight - finalHeight) / 2;
+      let offsetX = cropX !== undefined ? cropX : (width - finalWidth) / 2;
+      let offsetY = cropY !== undefined ? cropY : (height - finalHeight) / 2;
       
       // 确保裁剪位置在有效范围内
-      offsetX = Math.max(0, Math.min(offsetX, scaledWidth - finalWidth));
-      offsetY = Math.max(0, Math.min(offsetY, scaledHeight - finalHeight));
+      offsetX = Math.max(0, Math.min(offsetX, width - finalWidth));
+      offsetY = Math.max(0, Math.min(offsetY, height - finalHeight));
       
-      ctx.drawImage(tempCanvas, offsetX, offsetY, finalWidth, finalHeight, 0, 0, finalWidth, finalHeight);
+      ctx.drawImage(img, offsetX, offsetY, finalWidth, finalHeight, 0, 0, finalWidth, finalHeight);
       URL.revokeObjectURL(img.src);
       return canvasToBlob(canvas, format, quality / 100);
     }
