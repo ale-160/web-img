@@ -38,6 +38,18 @@ export const HistoryModal = ({
     return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US');
   };
 
+  const getImageSize = (version: ImageHistoryEntry): string => {
+    if (version.imageSize) {
+      return formatSize(version.imageSize);
+    }
+    // 如果没有预存的大小，计算一下
+    try {
+      return formatSize(new Blob([version.imageData]).size);
+    } catch {
+      return '';
+    }
+  };
+
   const storageInfo = getStorageInfo(null, history, pinned);
 
   return (
@@ -109,8 +121,16 @@ export const HistoryModal = ({
                           />
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm truncate">{version.name}</div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {version.width} × {version.height}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-muted-foreground">
+                                {version.width} × {version.height}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                ·
+                              </span>
+                              <span className="text-xs text-muted-foreground font-mono">
+                                {getImageSize(version)}
+                              </span>
                             </div>
                             <div className="text-xs text-muted-foreground">{formatTime(version.timestamp)}</div>
                           </div>
@@ -147,7 +167,7 @@ export const HistoryModal = ({
               {history.length > 0 && (
                 <>
                   <div className="px-4 py-2 bg-muted/20 text-xs font-medium text-muted-foreground sticky top-0">
-                    历史图片 ({history.length})
+                    历史图片 ({history.filter(item => !item.pinned).length})
                   </div>
                   {history.filter(item => !item.pinned).map(version => (
                     <div
@@ -166,8 +186,16 @@ export const HistoryModal = ({
                           />
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm truncate">{version.name}</div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {version.width} × {version.height}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-muted-foreground">
+                                {version.width} × {version.height}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                ·
+                              </span>
+                              <span className="text-xs text-muted-foreground font-mono">
+                                {getImageSize(version)}
+                              </span>
                             </div>
                             <div className="text-xs text-muted-foreground">{formatTime(version.timestamp)}</div>
                           </div>

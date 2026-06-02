@@ -13,14 +13,14 @@ interface UploadZoneProps {
 
 // 支持的图片扩展名
 const supportedImageExtensions = [
-  '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg',
+  '.jpg', '.jpeg', '.png', '.bmp', '.webp', '.svg',
   '.tiff', '.tif', '.ico', '.raw', '.dng', '.cr2', '.nef',
   '.arw', '.orf', '.sr2', '.heic', '.heif'
 ];
 
 // 检查是否为图片文件（基于扩展名，因为有些raw格式MIME类型不标准）
 const isImageFile = (file: File): boolean => {
-  if (file.type.startsWith('image/')) return true;
+  if (file.type.startsWith('image/') && !file.type.includes('gif')) return true;
   const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
   return supportedImageExtensions.includes(ext);
 };

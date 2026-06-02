@@ -1,12 +1,15 @@
-export type ImageFormat = 'jpeg' | 'png' | 'webp' | 'gif' | 'bmp';
+export type ImageFormat = 'jpeg' | 'png' | 'webp' | 'bmp' | 'tiff' | 'ico';
 
 export const IMAGE_FORMATS: { id: ImageFormat; name: string; mimeType: string; extension: string }[] = [
   { id: 'jpeg', name: 'JPEG', mimeType: 'image/jpeg', extension: 'jpg' },
   { id: 'png', name: 'PNG', mimeType: 'image/png', extension: 'png' },
   { id: 'webp', name: 'WebP', mimeType: 'image/webp', extension: 'webp' },
-  { id: 'gif', name: 'GIF', mimeType: 'image/gif', extension: 'gif' },
   { id: 'bmp', name: 'BMP', mimeType: 'image/bmp', extension: 'bmp' },
+  { id: 'tiff', name: 'TIFF', mimeType: 'image/tiff', extension: 'tiff' },
+  { id: 'ico', name: 'ICO', mimeType: 'image/x-icon', extension: 'ico' },
 ];
+
+export type ResizeMode = 'stretch' | 'crop';
 
 export function loadImage(file: File | Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -40,34 +43,72 @@ export async function compressImage(
   quality: number,
   maxWidth?: number,
   maxHeight?: number,
-  format: ImageFormat = 'jpeg'
+  format: ImageFormat = 'jpeg',
+  resizeMode: ResizeMode = 'stretch',
+  cropX?: number,
+  cropY?: number
 ): Promise<Blob> {
   const img = await loadImage(file);
   let { width, height } = img;
 
-  // 如果设置了目标尺寸，直接使用目标尺寸（强制缩放）
-  if (maxWidth && maxHeight) {
-    width = maxWidth;
-    height = maxHeight;
-  } else if (maxWidth) {
-    // 只设置了宽度，按宽度等比缩放
-    const ratio = maxWidth / width;
-    width = maxWidth;
-    height = Math.round(height * ratio);
-  } else if (maxHeight) {
-    // 只设置了高度，按高度等比缩放
-    const ratio = maxHeight / height;
-    height = maxHeight;
-    width = Math.round(width * ratio);
+  // 如果设置了目标尺寸
+  if (maxWidth || maxHeight) {
+    if (resizeMode === 'stretch') {
+      // 拉伸模式：使用目标尺寸
+      if (maxWidth && maxHeight) {
+        width = maxWidth;
+        height = maxHeight;
+      } else if (maxWidth) {
+        const ratio = maxWidth / width;
+        width = maxWidth;
+        height = Math.round(height * ratio);
+      } else if (maxHeight) {
+        const ratio = maxHeight / height;
+        height = maxHeight;
+        width = Math.round(width * ratio);
+      }
+    } else {
+      // 裁剪模式
+      let finalWidth = maxWidth || width;
+      let finalHeight = maxHeight || height;
+      
+      let scaleX = finalWidth / width;
+      let scaleY = finalHeight / height;
+      let scale = Math.max(scaleX, scaleY);
+      
+      let scaledWidth = Math.round(width * scale);
+      let scaledHeight = Math.round(height * scale);
+      
+      // 创建中间尺寸的画布
+      const { canvas: tempCanvas, ctx: tempCtx } = createCanvas(scaledWidth, scaledHeight);
+      tempCtx.imageSmoothingEnabled = true;
+      tempCtx.imageSmoothingQuality = 'high';
+      tempCtx.drawImage(img, 0, 0, scaledWidth, scaledHeight);
+      
+      // 创建最终尺寸的画布
+      const { canvas, ctx } = createCanvas(finalWidth, finalHeight);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // 使用用户提供的裁剪位置，或者默认居中
+      let offsetX = cropX !== undefined ? cropX * scale : (scaledWidth - finalWidth) / 2;
+      let offsetY = cropY !== undefined ? cropY * scale : (scaledHeight - finalHeight) / 2;
+      
+      // 确保裁剪位置在有效范围内
+      offsetX = Math.max(0, Math.min(offsetX, scaledWidth - finalWidth));
+      offsetY = Math.max(0, Math.min(offsetY, scaledHeight - finalHeight));
+      
+      ctx.drawImage(tempCanvas, offsetX, offsetY, finalWidth, finalHeight, 0, 0, finalWidth, finalHeight);
+      URL.revokeObjectURL(img.src);
+      return canvasToBlob(canvas, format, quality / 100);
+    }
   }
 
   const { canvas, ctx } = createCanvas(width, height);
-  // 使用高质量渲染
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, 0, 0, width, height);
   URL.revokeObjectURL(img.src);
-
   return canvasToBlob(canvas, format, quality / 100);
 }
 
@@ -79,7 +120,6 @@ export async function convertImage(
   const { canvas, ctx } = createCanvas(img.width, img.height);
   ctx.drawImage(img, 0, 0);
   URL.revokeObjectURL(img.src);
-
   return canvasToBlob(canvas, targetFormat);
 }
 
@@ -140,7 +180,6 @@ export function cropImage(
   canvas.width = width;
   canvas.height = height;
   ctx.drawImage(img, x, y, width, height, 0, 0, width, height);
-
   return { width, height };
 }
 
@@ -219,11 +258,11 @@ export function addTextWatermark(
     }
   } else if (pattern === 'diagonal') {
     const diagonalLength = Math.sqrt(canvasWidth ** 2 + canvasHeight ** 2);
-    const steps = Math.ceil(diagonalLength / (textWidth + gapX));
+    const steps = Math.ceil(diagonalLength / Math.max(textWidth, fontSize));
 
     for (let i = -steps; i <= steps; i++) {
       const tx = i * (textWidth + gapX) + canvasWidth / 2;
-      const ty = (-i * (textWidth + gapX)) + canvasHeight / 2;
+      const ty = (-i * (textWidth + gapY)) + canvasHeight / 2;
       ctx.fillText(text, tx, ty);
     }
   } else {
@@ -281,7 +320,7 @@ export function addImageWatermark(
 
     for (let i = -steps; i <= steps; i++) {
       const tx = i * (wmWidth + gapX) + canvasWidth / 2;
-      const ty = (-i * (wmHeight + gapY)) + canvasHeight / 2;
+      const ty = (-i * (wmWidth + gapY)) + canvasHeight / 2;
       ctx.save();
       ctx.translate(tx, ty);
       ctx.rotate(Math.atan2(canvasHeight, canvasWidth));
@@ -309,7 +348,7 @@ export function embedInvisibleWatermark(
 
   for (let i = 0; i < data.length && bitIndex < binaryText.length; i += 4) {
     for (let channel = 0; channel < 3 && bitIndex < binaryText.length; channel++) {
-      data[i + channel] = (data[i + channel] & 0xFE) | parseInt(binaryText[bitIndex], 2);
+      data[i + channel] = (data[i + channel] & 0xfe) | parseInt(binaryText[bitIndex], 2);
       bitIndex++;
     }
   }

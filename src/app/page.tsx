@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Moon, Sun, Download, Undo2, Redo2, Trash2, Globe, Shield, Edit2, Check, X, ChevronDown, History } from 'lucide-react';
+import { Moon, Sun, Download, Undo2, Redo2, Trash2, Globe, Shield, Edit2, Check, X, History, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
@@ -46,14 +46,11 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<ToolTab | null>(null);
   const [isEditingFileName, setIsEditingFileName] = useState(false);
   const [editedFileName, setEditedFileName] = useState('');
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('jpeg');
-  const [showFormatDropdown, setShowFormatDropdown] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<FileList | File[] | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<ImageHistoryEntry[]>([]);
   const [pinned, setPinned] = useState<ImageHistoryEntry[]>([]);
-  const formatDropdownRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isMounted = langMounted && themeMounted;
@@ -75,16 +72,8 @@ export default function HomePage() {
     }
   }, [langMounted, themeMounted, theme]);
 
-  // 点击外部关闭下拉框
+  // 全局拖拽事件处理，防止浏览器打开新标签页
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (formatDropdownRef.current && !formatDropdownRef.current.contains(e.target as Node)) {
-        setShowFormatDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-
-    // 全局拖拽事件处理，防止浏览器打开新标签页
     const handleGlobalDrag = (e: DragEvent) => {
       e.preventDefault();
     };
@@ -93,12 +82,10 @@ export default function HomePage() {
     window.addEventListener('drop', handleGlobalDrag);
     
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('dragover', handleGlobalDrag);
       window.removeEventListener('drop', handleGlobalDrag);
     };
   }, []);
-
 
 
   // 添加图片后设置默认格式和添加到历史
@@ -110,6 +97,7 @@ export default function HomePage() {
     } else {
       addImages(files);
       clearHistoryStack();
+      setActiveTab('compress'); // 自动跳转到压缩
     }
   }, [previewImage, addImages, clearHistoryStack]);
 
@@ -118,6 +106,7 @@ export default function HomePage() {
       clearImages();
       clearHistoryStack();
       addImages(pendingFiles);
+      setActiveTab('compress'); // 确认后自动跳转到压缩
     }
     setShowConfirmDialog(false);
     setPendingFiles(null);
@@ -131,7 +120,6 @@ export default function HomePage() {
   const handleClearAll = useCallback(() => {
     clearImages();
     clearHistoryStack();
-    setActiveTab(null);
   }, [clearImages, clearHistoryStack]);
 
   const handleUndo = useCallback(() => {
@@ -194,35 +182,38 @@ export default function HomePage() {
     };
   }, [previewImage?.url]); // 只依赖URL变化
 
-  // 当添加图片后，设置selectedFormat为原图格式
-  useEffect(() => {
-    if (originalImages.length > 0) {
-      const format = getOriginalFormat();
-      if (format) {
-        setSelectedFormat(format as ExportFormat);
-      }
-    }
-  }, [originalImages.length, getOriginalFormat]);
-
   // 获取文件名（不含扩展名）
   const getFileNameWithoutExtension = (filename: string) => {
     const lastDotIndex = filename.lastIndexOf('.');
     return lastDotIndex > 0 ? filename.substring(0, lastDotIndex) : filename;
   };
 
-  // 下载时使用编辑后的文件名和选择的格式
+  // 计算 dataURL 的大小
+  const getDataUrlSize = (dataUrl: string) => {
+    // dataURL 的大小大约是字节的 1.37 倍
+    const base64 = dataUrl.split(',')[1];
+    return base64 ? Math.ceil(base64.length * 0.75) : 0;
+  };
+
+  // 下载时使用编辑后的文件名
   const handleDownload = useCallback(() => {
     if (!previewImage) return;
     const baseName = getFileNameWithoutExtension(previewImage.name);
-    const formatInfo = exportFormats.find(f => f.id === selectedFormat);
-    const finalName = `${baseName}${formatInfo?.extension || '.png'}`;
-    downloadFile(previewImage.url, finalName);
+    downloadFile(previewImage.url, baseName);
     toast.success(t('download'));
-  }, [previewImage, selectedFormat, t]);
+  }, [previewImage, t]);
 
   const handleApply = useCallback((imageData: string, width: number, height: number) => {
+    // 先保存当前状态到历史栈
+    if (previewImage) {
+      pushState({
+        imageData: previewImage.url,
+        width: previewImage.width,
+        height: previewImage.height
+      });
+    }
     updatePreview(imageData, width, height);
-  }, [updatePreview]);
+  }, [previewImage, updatePreview, pushState]);
 
   const handleToggleLanguage = useCallback(() => {
     toggleLanguage();
@@ -238,12 +229,10 @@ export default function HomePage() {
 
   const handleSaveFileName = useCallback(() => {
     if (editedFileName.trim()) {
-      const formatInfo = exportFormats.find(f => f.id === selectedFormat);
-      const fullName = `${editedFileName.trim()}${formatInfo?.extension || '.png'}`;
-      updatePreviewName(fullName);
+      updatePreviewName(editedFileName.trim());
     }
     setIsEditingFileName(false);
-  }, [editedFileName, selectedFormat, updatePreviewName]);
+  }, [editedFileName, updatePreviewName]);
 
   const handleCancelEditFileName = useCallback(() => {
     setIsEditingFileName(false);
@@ -251,18 +240,6 @@ export default function HomePage() {
       setEditedFileName(getFileNameWithoutExtension(previewImage.name));
     }
   }, [previewImage]);
-
-  const handleFormatSelect = useCallback((formatId: ExportFormat) => {
-    setSelectedFormat(formatId);
-    setShowFormatDropdown(false);
-    // 更新预览文件名的扩展名
-    if (previewImage) {
-      const baseName = getFileNameWithoutExtension(previewImage.name);
-      const formatInfo = exportFormats.find(f => f.id === formatId);
-      const fullName = `${baseName}${formatInfo?.extension || '.png'}`;
-      updatePreviewName(fullName);
-    }
-  }, [previewImage, updatePreviewName]);
 
   const handleRestoreVersion = useCallback((version: ImageHistoryEntry) => {
     updatePreview(version.imageData, version.width, version.height);
@@ -346,22 +323,6 @@ export default function HomePage() {
             <History className="w-5 h-5" />
           </button>
           <button
-            onClick={handleDownload}
-            disabled={!hasImages}
-            className="p-2 rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title={t('download')}
-          >
-            <Download className="w-5 h-5" />
-          </button>
-          <button
-            onClick={handleClearAll}
-            disabled={!hasImages}
-            className="p-2 rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title={t('clearAll')}
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
-          <button
             onClick={handleToggleLanguage}
             className="p-2 rounded-lg hover:bg-muted transition-colors"
             title={t('language')}
@@ -389,16 +350,6 @@ export default function HomePage() {
                   imageHeight={currentOriginal.height}
                   imageSize={currentOriginal.size}
                   onApply={handleApply}
-                  initialFormat={selectedFormat}
-                  onFormatChange={(newFormat) => {
-                    setSelectedFormat(newFormat);
-                    if (currentOriginal) {
-                      const baseName = getFileNameWithoutExtension(currentOriginal.name);
-                      const formatInfo = exportFormats.find(f => f.id === newFormat);
-                      const fullName = `${baseName}${formatInfo?.extension || '.png'}`;
-                      updatePreviewName(fullName);
-                    }
-                  }}
                 />
               )}
               {activeTab === 'edit' && currentOriginal && (
@@ -441,61 +392,48 @@ export default function HomePage() {
               )}
             </ToolPanel>
           </div>
-
-          <div className="p-2 border-t border-border">
-            <div className="flex gap-1">
-              <button
-                onClick={handleUndo}
-                disabled={!canUndo}
-                className="flex-1 flex items-center justify-center gap-1 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                title={t('undo')}
-              >
-                <Undo2 className="w-4 h-4" />
-                <span>{t('undo')}</span>
-              </button>
-              <button
-                onClick={handleRedo}
-                disabled={!canRedo}
-                className="flex-1 flex items-center justify-center gap-1 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                title={t('redo')}
-              >
-                <span>{t('redo')}</span>
-                <Redo2 className="w-4 h-4" />
-              </button>
-            </div>
-            <button
-              onClick={handleReset}
-              disabled={!hasImages}
-              className="w-full mt-1 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {t('reset')}
-            </button>
-          </div>
         </aside>
 
         <main className="flex-1 flex min-h-0">
           <div className="flex-1 flex flex-col border-r border-border min-w-0">
             <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 shrink-0">
               <span className="text-sm font-bold">{t('original')}</span>
-              {currentOriginal && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground truncate max-w-[150px]">
-                    {currentOriginal.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatFileSize(currentOriginal.size)}
-                  </span>
-                </div>
-              )}
             </div>
             <div className="flex-1 overflow-auto bg-muted/10 scrollbar-thin">
               {currentOriginal ? (
-                <div className="flex items-center justify-center h-full p-4">
-                  <img
-                    src={currentOriginal.url}
-                    alt="Original"
-                    className="max-w-full max-h-full object-contain"
-                  />
+                <div className="flex flex-col h-full p-4">
+                  {/* 图片区域 - 占满剩余空间 */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <img
+                      src={currentOriginal.url}
+                      alt="Original"
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                  {/* 信息和按钮区域 - 固定在底部 */}
+                  <div className="pt-4 text-center space-y-2">
+                    <div className="text-sm font-medium">
+                      原图名称：{currentOriginal.name}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      原图大小：{formatFileSize(currentOriginal.size)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      原图尺寸：{currentOriginal.width} × {currentOriginal.height}
+                    </div>
+                    {/* 清空按钮 */}
+                    <div className="mt-3">
+                      <button
+                        onClick={handleClearAll}
+                        disabled={!hasImages}
+                        className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm mx-auto"
+                        title={t('clearAll')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>{t('clearAll')}</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full p-4">
@@ -513,89 +451,114 @@ export default function HomePage() {
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 shrink-0">
               <span className="text-sm font-bold">{t('preview')}</span>
-              {previewImage && (
-                <div className="flex items-center gap-2">
-                  {isEditingFileName ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        value={editedFileName}
-                        onChange={(e) => setEditedFileName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveFileName();
-                          if (e.key === 'Escape') handleCancelEditFileName();
-                        }}
-                        className="px-2 py-1 border border-border rounded text-xs bg-background w-32"
-                        autoFocus
-                      />
-                      <button
-                        onClick={handleSaveFileName}
-                        className="p-1 rounded hover:bg-muted text-muted-foreground"
-                        title="保存"
-                      >
-                        <Check className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={handleCancelEditFileName}
-                        className="p-1 rounded hover:bg-muted text-muted-foreground"
-                        title="取消"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                        {getFileNameWithoutExtension(previewImage.name)}
-                      </span>
-                      <button
-                        onClick={handleStartEditFileName}
-                        className="p-1 rounded hover:bg-muted text-muted-foreground"
-                        title="编辑文件名"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                  {/* 格式下拉框 */}
-                  <div className="relative" ref={formatDropdownRef}>
-                    <button
-                      onClick={() => setShowFormatDropdown(!showFormatDropdown)}
-                      className="flex items-center gap-1 px-2 py-1 rounded bg-muted hover:bg-muted/80 text-xs"
-                    >
-                      <span>{exportFormats.find(f => f.id === selectedFormat)?.extension}</span>
-                      <ChevronDown className="w-3 h-3" />
-                    </button>
-                    {showFormatDropdown && (
-                      <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[100px]">
-                        {exportFormats.map((format) => (
-                          <button
-                            key={format.id}
-                            onClick={() => handleFormatSelect(format.id)}
-                            className={`w-full px-3 py-1.5 text-left text-xs hover:bg-muted first:rounded-t-lg last:rounded-b-lg ${
-                              selectedFormat === format.id ? 'bg-primary/10 text-primary' : ''
-                            }`}
-                          >
-                            {format.extension}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {previewImage.width} × {previewImage.height}
-                  </span>
-                </div>
-              )}
             </div>
             <div className="flex-1 overflow-auto bg-muted/10 scrollbar-thin">
               {previewImage ? (
-                <div className="flex items-center justify-center h-full p-4">
-                  <img
-                    src={previewImage.url}
-                    alt="Preview"
-                    className="max-w-full max-h-full object-contain"
-                  />
+                <div className="flex flex-col h-full p-4">
+                  {/* 图片区域 - 占满剩余空间 */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <img
+                      src={previewImage.url}
+                      alt="Preview"
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                  {/* 信息和按钮区域 - 固定在底部 */}
+                  <div className="pt-4 text-center space-y-2">
+                    {isEditingFileName ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-sm font-medium">
+                          预览名称：
+                        </span>
+                        <input
+                          type="text"
+                          value={editedFileName}
+                          onChange={(e) => setEditedFileName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveFileName();
+                            if (e.key === 'Escape') handleCancelEditFileName();
+                          }}
+                          className="px-2 py-1 border border-border rounded text-sm bg-background w-32"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSaveFileName}
+                          className="p-1 rounded hover:bg-muted text-muted-foreground"
+                          title="保存"
+                        >
+                          <Check className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={handleCancelEditFileName}
+                          className="p-1 rounded hover:bg-muted text-muted-foreground"
+                          title="取消"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-sm font-medium">
+                          预览名称：
+                        </span>
+                        <span className="text-sm truncate max-w-[200px]">
+                          {getFileNameWithoutExtension(previewImage.name)}
+                        </span>
+                        <button
+                          onClick={handleStartEditFileName}
+                          className="p-1 rounded hover:bg-muted text-muted-foreground"
+                          title="编辑文件名"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="text-sm text-muted-foreground">
+                      预览大小：{formatFileSize(getDataUrlSize(previewImage.url))}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      预览尺寸：{previewImage.width} × {previewImage.height}
+                    </div>
+                    {/* 预览功能按钮 */}
+                    <div className="mt-3 flex flex-wrap gap-2 justify-center">
+                      <button
+                        onClick={handleUndo}
+                        disabled={!canUndo}
+                        className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        title={t('undo')}
+                      >
+                        <Undo2 className="w-4 h-4" />
+                        <span>{t('undo')}</span>
+                      </button>
+                      <button
+                        onClick={handleRedo}
+                        disabled={!canRedo}
+                        className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        title={t('redo')}
+                      >
+                        <Redo2 className="w-4 h-4" />
+                        <span>{t('redo')}</span>
+                      </button>
+                      <button
+                        onClick={handleReset}
+                        disabled={!hasImages}
+                        className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        title={t('reset')}
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        {t('reset')}
+                      </button>
+                      <button
+                        onClick={handleDownload}
+                        disabled={!hasImages}
+                        className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        title={t('download')}
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>{t('download')}</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">

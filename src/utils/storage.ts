@@ -10,6 +10,7 @@ export interface ImageHistoryEntry {
   name: string;
   timestamp: number;
   pinned?: boolean;
+  imageSize?: number;
   originalFile?: {
     name: string;
     size: number;
@@ -115,6 +116,12 @@ export const addToHistory = (
   currentHistory: ImageHistoryEntry[],
   currentPinned: ImageHistoryEntry[]
 ): { history: ImageHistoryEntry[]; pinned: ImageHistoryEntry[] } => {
+  // 计算图片大小并添加到记录中
+  const entryWithSize = {
+    ...entry,
+    imageSize: getTextSize(entry.imageData)
+  };
+  
   const fileName = entry.name;
   
   const updatedHistory = currentHistory.filter(
@@ -130,12 +137,12 @@ export const addToHistory = (
   if (isInPinned) {
     return {
       history: updatedHistory,
-      pinned: [entry, ...updatedPinned].slice(0, 100)
+      pinned: [entryWithSize, ...updatedPinned].slice(0, 100)
     };
   }
   
   return {
-    history: [entry, ...updatedHistory].slice(0, 50),
+    history: [entryWithSize, ...updatedHistory].slice(0, 50),
     pinned: updatedPinned
   };
 };
