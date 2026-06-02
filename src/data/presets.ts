@@ -18,7 +18,7 @@ export interface WatermarkPreset {
 
 export const sizePresets: SizePreset[] = [
   { id: 'avatar', name: '头像', nameEn: 'Avatar', width: 200, height: 200, label: '头像', labelEn: 'Avatar', fixed: true },
-  { id: 'portrait', name: '竖屏', nameEn: 'Portrait', width: 500, height: 1080, label: '竖屏', labelEn: 'Portrait', fixed: true },
+  { id: 'portrait', name: '竖屏', nameEn: 'Portrait', width: 590, height: 1080, label: '竖屏', labelEn: 'Portrait', fixed: true },
   { id: 'square', name: '方形', nameEn: 'Square', width: 500, height: 500, label: '方形', labelEn: 'Square', fixed: true },
   { id: 'weibo_cover', name: '微博封面', nameEn: 'Weibo Cover', width: 920, height: 300, label: '微博封面', labelEn: 'Weibo Cover', fixed: false },
   { id: 'weibo_pic', name: '微博配图', nameEn: 'Weibo Post', width: 1024, height: 1024, label: '微博配图', labelEn: 'Weibo Post', fixed: false },
@@ -40,14 +40,22 @@ export const watermarkPresets: WatermarkPreset[] = [
 // 移除了 'convert'，格式转换功能已整合到压缩功能中
 export type ToolTab = 'compress' | 'edit' | 'watermark' | 'merge' | 'color';
 
+export interface FormatPreset {
+  id: string;
+  name: string;
+  nameEn: string;
+  extension: string;
+  fixed: boolean;
+}
+
 // 支持的导出格式
-export const exportFormats = [
-  { id: 'jpeg', name: 'JPEG', extension: '.jpg' },
-  { id: 'png', name: 'PNG', extension: '.png' },
-  { id: 'webp', name: 'WebP', extension: '.webp' },
-  { id: 'bmp', name: 'BMP', extension: '.bmp' },
-  { id: 'tiff', name: 'TIFF', extension: '.tiff' },
-  { id: 'ico', name: 'ICO', extension: '.ico' },
-] as const;
+export const exportFormats: FormatPreset[] = [
+  { id: 'jpeg', name: 'JPEG', nameEn: 'JPEG', extension: '.jpg', fixed: true },
+  { id: 'png', name: 'PNG', nameEn: 'PNG', extension: '.png', fixed: true },
+  { id: 'webp', name: 'WebP', nameEn: 'WebP', extension: '.webp', fixed: true },
+  { id: 'bmp', name: 'BMP', nameEn: 'BMP', extension: '.bmp', fixed: false },
+  { id: 'tiff', name: 'TIFF', nameEn: 'TIFF', extension: '.tiff', fixed: false },
+  { id: 'ico', name: 'ICO', nameEn: 'ICO', extension: '.ico', fixed: false },
+];
 
 export type ExportFormat = typeof exportFormats[number]['id'];

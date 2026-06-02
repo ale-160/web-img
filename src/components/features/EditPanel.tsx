@@ -52,7 +52,7 @@ export function EditPanel({ imageUrl, imageWidth, imageHeight, onApply }: EditPa
 
       let finalWidth = img.width;
       let finalHeight = img.height;
-      // 旋转90度或270度时，宽高会互换
+      // 旋转90度或270度时，宽高会互换 - 这是有意为之的逻辑
       if (rotation === 90 || rotation === 270) {
         finalWidth = img.height;
         finalHeight = img.width;

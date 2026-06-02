@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { compressImage, ImageFormat, loadImage, ResizeMode } from '@/utils/canvas';
-import { sizePresets, exportFormats, ExportFormat, SizePreset } from '@/data/presets';
+import { sizePresets, exportFormats, ExportFormat, SizePreset, FormatPreset } from '@/data/presets';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Settings, Crop as CropIcon, Plus } from 'lucide-react';
 import { PresetManagerModal } from '@/components/ui/PresetManagerModal';
 import { CropModal } from '@/components/ui/CropModal';
+import { FormatManagerModal } from '@/components/ui/FormatManagerModal';
 
 interface CompressPanelProps {
   imageUrl: string;
@@ -37,6 +38,7 @@ export function CompressPanel({
 
   // 模态框状态
   const [showPresetManager, setShowPresetManager] = useState(false);
+  const [showFormatManager, setShowFormatManager] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customWidth, setCustomWidth] = useState('');
@@ -44,11 +46,17 @@ export function CompressPanel({
 
   // 本地预设管理
   const [localPresets, setLocalPresets] = useState<SizePreset[]>(sizePresets);
+  const [localFormats, setLocalFormats] = useState<FormatPreset[]>(exportFormats);
 
   // 获取固定的预设
   const fixedPresets = useMemo(() => {
     return localPresets.filter(p => p.fixed);
   }, [localPresets]);
+
+  // 获取固定的格式
+  const fixedFormats = useMemo(() => {
+    return localFormats.filter(f => f.fixed);
+  }, [localFormats]);
 
   // 使用ref存储最新值
   const maxWidthRef = useRef<number | undefined>(undefined);
@@ -174,9 +182,14 @@ export function CompressPanel({
   }, [handleApply, maxWidth, maxHeight]);
 
   // 裁剪回调
-  const handleCropConfirm = useCallback((x: number, y: number) => {
+  const handleCropConfirm = useCallback((x: number, y: number, actualWidth?: number, actualHeight?: number) => {
     setCropX(x);
     setCropY(y);
+    if (actualWidth && actualHeight) {
+      setMaxWidth(actualWidth);
+      setMaxHeight(actualHeight);
+      setSelectedPreset(null);
+    }
     setTimeout(() => handleApply(), 0);
   }, [handleApply]);
 
@@ -185,12 +198,19 @@ export function CompressPanel({
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium">{language === 'zh' ? '目标格式' : 'Target Format'}</label>
+          <button
+            onClick={() => setShowFormatManager(true)}
+            className="p-1 rounded hover:bg-muted"
+            title={language === 'zh' ? '管理格式' : 'Manage Formats'}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {exportFormats.map((f) => (
+          {fixedFormats.map((f) => (
             <button
               key={f.id}
-              onClick={() => handleFormatClick(f.id)}
+              onClick={() => handleFormatClick(f.id as ExportFormat)}
               className={cn(
                 'px-3 py-2 rounded-lg text-sm transition-all relative',
                 format === f.id
@@ -344,6 +364,14 @@ export function CompressPanel({
         onClose={() => setShowPresetManager(false)}
         presets={localPresets}
         onPresetsChange={setLocalPresets}
+      />
+
+      {/* 格式管理模态框 */}
+      <FormatManagerModal
+        isOpen={showFormatManager}
+        onClose={() => setShowFormatManager(false)}
+        formats={localFormats}
+        onFormatsChange={setLocalFormats}
       />
 
       {/* 裁剪模态框 */}

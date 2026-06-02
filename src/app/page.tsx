@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Moon, Sun, Download, Undo2, Redo2, Trash2, Globe, Shield, Edit2, Check, X, History, RotateCcw } from 'lucide-react';
+import { Moon, Sun, Download, Undo2, Redo2, Trash2, Globe, Shield, Edit2, Check, X, History, RotateCcw, Maximize, Minimize, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
@@ -47,6 +47,8 @@ export default function HomePage() {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<ImageHistoryEntry[]>([]);
   const [pinned, setPinned] = useState<ImageHistoryEntry[]>([]);
+  const [hideOriginal, setHideOriginal] = useState(false);
+  const [showFullscreenImage, setShowFullscreenImage] = useState(false);
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isMounted = langMounted && themeMounted;
@@ -246,19 +248,28 @@ export default function HomePage() {
 
   const handleTogglePin = useCallback((version: ImageHistoryEntry) => {
     if (version.pinned) {
+      // 取消固定：从 pinned 中移除，添加回 history（如果不存在）
       setPinned(prev => {
         const updated = prev.filter(item => item.id !== version.id);
         savePinned(updated);
         return updated;
       });
       setHistory(prev => {
-        const updated = prev.map(item =>
-          item.id === version.id ? { ...item, pinned: false } : item
-        );
+        // 检查是否已在 history 中
+        const existsInHistory = prev.some(item => item.id === version.id);
+        let updated;
+        if (existsInHistory) {
+          updated = prev.map(item =>
+            item.id === version.id ? { ...item, pinned: false } : item
+          );
+        } else {
+          updated = [{ ...version, pinned: false }, ...prev].slice(0, 50);
+        }
         saveHistory(updated);
         return updated;
       });
     } else {
+      // 固定：添加到 pinned，保留在 history 中
       const pinnedItem = { ...version, pinned: true };
       setPinned(prev => {
         const updated = [pinnedItem, ...prev.filter(item => item.id !== version.id)];
@@ -266,9 +277,16 @@ export default function HomePage() {
         return updated;
       });
       setHistory(prev => {
-        const updated = prev.map(item =>
-          item.id === version.id ? pinnedItem : item
-        );
+        // 如果不在 history 中，也添加回去
+        const existsInHistory = prev.some(item => item.id === version.id);
+        let updated;
+        if (existsInHistory) {
+          updated = prev.map(item =>
+            item.id === version.id ? pinnedItem : item
+          );
+        } else {
+          updated = [pinnedItem, ...prev].slice(0, 50);
+        }
         saveHistory(updated);
         return updated;
       });
@@ -286,6 +304,16 @@ export default function HomePage() {
       savePinned(updated);
       return updated;
     });
+  }, []);
+
+  // 切换隐藏原图
+  const handleToggleHideOriginal = useCallback(() => {
+    setHideOriginal(prev => !prev);
+  }, []);
+
+  // 切换全屏显示预览
+  const handleToggleFullscreen = useCallback(() => {
+    setShowFullscreenImage(prev => !prev);
   }, []);
 
   if (!isMounted) {
@@ -391,68 +419,90 @@ export default function HomePage() {
         </aside>
 
         <main className="flex-1 flex min-h-0">
-          <div className="flex-1 flex flex-col border-r border-border min-w-0">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 shrink-0">
-              <span className="text-sm font-bold">{t('original')}</span>
-            </div>
-            <div className="flex-1 overflow-auto bg-muted/10 scrollbar-thin">
-              {currentOriginal ? (
-                <div className="flex flex-col h-full p-4">
-                  {/* 图片区域 - 占满剩余空间 */}
-                  <div className="flex-1 flex items-center justify-center">
-                    <img
-                      src={currentOriginal.url}
-                      alt="Original"
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                  {/* 信息和按钮区域 - 固定在底部 */}
-                  <div className="pt-4 text-center space-y-2">
-                    <div className="text-sm font-medium">
-                      原图名称：{currentOriginal.name}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      原图大小：{formatFileSize(currentOriginal.size)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      原图尺寸：{currentOriginal.width} × {currentOriginal.height}
-                    </div>
-                    {/* 清空按钮 */}
-                    <div className="mt-3">
-                      <button
-                        onClick={handleClearAll}
-                        disabled={!hasImages}
-                        className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm mx-auto"
-                        title={t('clearAll')}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>{t('clearAll')}</span>
-                      </button>
-                    </div>
-                  </div>
+          {!hideOriginal && (
+            <>
+              <div className="flex-1 flex flex-col border-r border-border min-w-0">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 shrink-0">
+                  <span className="text-sm font-bold">{t('original')}</span>
                 </div>
-              ) : (
-                <div className="flex items-center justify-center h-full p-4">
-                  <div className="w-full max-w-md">
-                    <UploadZone onFilesSelected={handleFilesSelected} hasExistingImage={false} />
-                  </div>
+                <div className="flex-1 overflow-auto bg-muted/10 scrollbar-thin">
+                  {currentOriginal ? (
+                    <div className="flex flex-col h-full p-4">
+                      {/* 图片区域 - 固定高度，与预览区域一致 */}
+                      <div className="h-96 flex items-center justify-center">
+                        <img
+                          src={currentOriginal.url}
+                          alt="Original"
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
+                      {/* 信息和按钮区域 - 固定在底部 */}
+                      <div className="pt-4 text-center space-y-2">
+                        <div className="text-sm font-medium">
+                          原图名称：{currentOriginal.name}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          原图大小：{formatFileSize(currentOriginal.size)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          原图尺寸：{currentOriginal.width} × {currentOriginal.height}
+                        </div>
+                        {/* 清空按钮 */}
+                        <div className="mt-3">
+                          <button
+                            onClick={handleClearAll}
+                            disabled={!hasImages}
+                            className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm mx-auto"
+                            title={t('clearAll')}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>{t('clearAll')}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full p-4">
+                      <div className="w-full max-w-md">
+                        <UploadZone onFilesSelected={handleFilesSelected} hasExistingImage={false} />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* 中间分隔线 */}
-          <div className="w-px bg-border self-stretch" />
+              {/* 中间分隔线 */}
+              <div className="w-px bg-border self-stretch" />
+            </>
+          )}
 
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className={`flex flex-col min-w-0 ${hideOriginal ? 'flex-2' : 'flex-1'}`}>
             <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 shrink-0">
               <span className="text-sm font-bold">{t('preview')}</span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleToggleHideOriginal}
+                  disabled={!hasImages}
+                  className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={hideOriginal ? '显示原图' : '隐藏原图'}
+                >
+                  {hideOriginal ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={handleToggleFullscreen}
+                  disabled={!hasImages}
+                  className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="全屏预览"
+                >
+                  {showFullscreenImage ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-auto bg-muted/10 scrollbar-thin">
               {previewImage ? (
                 <div className="flex flex-col h-full p-4">
-                  {/* 图片区域 - 占满剩余空间 */}
-                  <div className="flex-1 flex items-center justify-center">
+                  {/* 图片区域 - 固定高度，隐藏原图时放大一倍 */}
+                  <div className={`flex items-center justify-center ${hideOriginal ? 'h-[48rem]' : 'h-96'}`}>
                     <img
                       src={previewImage.url}
                       alt="Preview"
@@ -607,6 +657,27 @@ export default function HomePage() {
         onDelete={handleDeleteVersion}
         onTogglePin={handleTogglePin}
       />
+
+      {/* 全屏图片预览 */}
+      {showFullscreenImage && previewImage && (
+        <div 
+          className="fixed inset-0 z-[1000] bg-black flex items-center justify-center cursor-pointer"
+          onClick={() => setShowFullscreenImage(false)}
+        >
+          <img
+            src={previewImage.url}
+            alt="Fullscreen Preview"
+            className="max-w-full max-h-full object-contain"
+          />
+          <button
+            onClick={() => setShowFullscreenImage(false)}
+            className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+            title="关闭"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

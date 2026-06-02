@@ -116,10 +116,11 @@ export const addToHistory = (
   currentHistory: ImageHistoryEntry[],
   currentPinned: ImageHistoryEntry[]
 ): { history: ImageHistoryEntry[]; pinned: ImageHistoryEntry[] } => {
-  // 计算图片大小并添加到记录中
+  // 计算图片大小并添加到记录中，确保默认不固定
   const entryWithSize = {
     ...entry,
-    imageSize: getTextSize(entry.imageData)
+    imageSize: getTextSize(entry.imageData),
+    pinned: entry.pinned ?? false // 默认不固定
   };
   
   const fileName = entry.name;
@@ -135,6 +136,7 @@ export const addToHistory = (
   const isInPinned = currentPinned.some(item => item.name === fileName);
   
   if (isInPinned) {
+    // 如果同名文件已在固定列表中，更新固定列表，但历史记录保持不变
     return {
       history: updatedHistory,
       pinned: [entryWithSize, ...updatedPinned].slice(0, 100)
