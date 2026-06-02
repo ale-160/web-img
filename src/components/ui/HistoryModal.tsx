@@ -23,7 +23,7 @@ export const HistoryModal = ({
   onDelete,
   onTogglePin,
 }: HistoryModalProps) => {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
 
   if (!isOpen) return null;
 
@@ -31,7 +31,7 @@ export const HistoryModal = ({
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
+
     if (diff < 60000) return '刚刚';
     if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
@@ -60,14 +60,14 @@ export const HistoryModal = ({
             <ImageIcon className="w-5 h-5" />
             图片历史记录
           </h3>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-2 rounded hover:bg-muted"
           >
             ✕
           </button>
         </div>
-        
+
         {/* 存储使用情况 */}
         <div className="p-4 border-b border-border bg-muted/30">
           <h4 className="text-sm font-medium mb-2">存储使用情况</h4>
@@ -90,7 +90,7 @@ export const HistoryModal = ({
             </div>
           </div>
         </div>
-        
+
         <div className="overflow-y-auto max-h-[65vh]">
           {history.length === 0 && pinned.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
@@ -110,7 +110,7 @@ export const HistoryModal = ({
                       className="p-3 hover:bg-muted cursor-pointer transition-colors border-b border-border last:border-b-0"
                     >
                       <div className="flex items-start justify-between">
-                        <div 
+                        <div
                           className="flex-1 flex gap-3"
                           onClick={() => onRestore(version)}
                         >
@@ -162,7 +162,7 @@ export const HistoryModal = ({
                   ))}
                 </>
               )}
-              
+
               {/* 普通版本 */}
               {history.length > 0 && (
                 <>
@@ -175,7 +175,7 @@ export const HistoryModal = ({
                       className="p-3 hover:bg-muted cursor-pointer transition-colors border-b border-border last:border-b-0"
                     >
                       <div className="flex items-start justify-between">
-                        <div 
+                        <div
                           className="flex-1 flex gap-3"
                           onClick={() => onRestore(version)}
                         >

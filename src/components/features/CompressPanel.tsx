@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { compressImage, ImageFormat, loadImage, ResizeMode } from '@/utils/canvas';
-import { formatFileSize } from '@/utils/file';
 import { sizePresets, exportFormats, ExportFormat, SizePreset } from '@/data/presets';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -23,7 +22,7 @@ export function CompressPanel({
   imageUrl,
   imageWidth,
   imageHeight,
-  imageSize,
+  imageSize: _imageSize,
   onApply
 }: CompressPanelProps) {
   const { language } = useLanguage();
@@ -31,7 +30,6 @@ export function CompressPanel({
   const [maxWidth, setMaxWidth] = useState<number | undefined>(undefined);
   const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
   const [format, setFormat] = useState<ExportFormat>('jpeg');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [resizeMode, setResizeMode] = useState<ResizeMode>('stretch');
   const [cropX, setCropX] = useState<number | undefined>(undefined);
@@ -98,7 +96,6 @@ export function CompressPanel({
   const handleApply = useCallback(async () => {
     if (!originalImageRef.current) return;
 
-    setIsProcessing(true);
     try {
       const response = await fetch(originalImageRef.current.url);
       const blob = await response.blob();
@@ -124,11 +121,9 @@ export function CompressPanel({
 
       const img = await loadImage(compressed);
       onApply(dataUrl, img.width, img.height);
-      toast.success(`处理完成 ${formatFileSize(compressed.size)}`);
-    } catch (error) {
+      toast.success('处理完成');
+    } catch (_error) {
       toast.error('压缩失败');
-    } finally {
-      setIsProcessing(false);
     }
   }, [onApply]);
 

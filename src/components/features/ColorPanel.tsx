@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { loadImage, replaceColor, createCanvas, canvasToDataUrl } from '@/utils/canvas';
 import { toast } from 'sonner';
@@ -20,9 +20,6 @@ export function ColorPanel({ imageUrl, onApply }: ColorPanelProps) {
   const [mode, setMode] = useState<'replace' | 'picker'>('replace');
   const [isActive, setIsActive] = useState(false);
   const applyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const originalImageRef = useRef<HTMLImageElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
   const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
@@ -58,7 +55,7 @@ export function ColorPanel({ imageUrl, onApply }: ColorPanelProps) {
 
   const performReplace = useCallback(async () => {
     if (!isActive) return;
-    
+
     setIsProcessing(true);
     try {
       const response = await fetch(imageUrl);
@@ -87,7 +84,7 @@ export function ColorPanel({ imageUrl, onApply }: ColorPanelProps) {
       clearTimeout(applyTimeoutRef.current);
     }
     applyTimeoutRef.current = setTimeout(() => {
-      performReplace();
+      void performReplace();
     }, 200);
   }, [performReplace]);
 
@@ -119,7 +116,7 @@ export function ColorPanel({ imageUrl, onApply }: ColorPanelProps) {
           console.error('Failed to reset image', error);
         }
       };
-      resetImage();
+      void resetImage();
     }
   }, [isActive, imageUrl, onApply]);
 
@@ -151,8 +148,8 @@ export function ColorPanel({ imageUrl, onApply }: ColorPanelProps) {
         disabled={isProcessing}
         className={cn(
           'w-full py-2.5 rounded-lg font-medium text-sm transition-colors',
-          isActive 
-            ? 'bg-primary text-primary-foreground' 
+          isActive
+            ? 'bg-primary text-primary-foreground'
             : 'bg-muted hover:bg-muted/80 text-muted-foreground',
           isProcessing && 'opacity-50 cursor-not-allowed'
         )}

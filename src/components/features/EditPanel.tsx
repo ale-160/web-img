@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { loadImage, createCanvas, applyFilters } from '@/utils/canvas';
+import { loadImage, createCanvas } from '@/utils/canvas';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -24,42 +24,43 @@ export function EditPanel({ imageUrl, imageWidth, imageHeight, onApply }: EditPa
   const [isFlippedH, setIsFlippedH] = useState(false);
   const [isFlippedV, setIsFlippedV] = useState(false);
   const originalImageRef = useRef<{ url: string; width: number; height: number } | null>(null);
-  
+
   useEffect(() => {
     originalImageRef.current = { url: imageUrl, width: imageWidth, height: imageHeight };
   }, [imageUrl, imageWidth, imageHeight]);
 
   const handleApply = useCallback(async () => {
     if (!originalImageRef.current) return;
-    
+
     setIsProcessing(true);
     try {
       const response = await fetch(originalImageRef.current.url);
       const blob = await response.blob();
       const img = await loadImage(blob);
-      
+
       const { canvas, ctx } = createCanvas(img.width, img.height);
-      
+
       ctx.translate(canvas.width / 2, canvas.height / 2);
       if (isFlippedH) ctx.scale(-1, 1);
       if (isFlippedV) ctx.scale(1, -1);
       ctx.rotate((rotation * Math.PI) / 180);
       ctx.translate(-img.width / 2, -img.height / 2);
-      
+
       ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) blur(${blur}px)`;
       ctx.drawImage(img, 0, 0);
       ctx.filter = 'none';
-      
+
       let finalWidth = img.width;
       let finalHeight = img.height;
+      // 旋转90度或270度时，宽高会互换
       if (rotation === 90 || rotation === 270) {
         finalWidth = img.height;
         finalHeight = img.width;
       }
-      
+
       const { canvas: finalCanvas, ctx: finalCtx } = createCanvas(finalWidth, finalHeight);
       finalCtx.drawImage(canvas, 0, 0);
-      
+
       const dataUrl = finalCanvas.toDataURL();
       onApply(dataUrl, finalWidth, finalHeight);
       toast.success(t('processing'));

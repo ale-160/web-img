@@ -21,7 +21,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
   const [fontSize, setFontSize] = useState(20);
   const [rotation, setRotation] = useState(0);
   const [pattern, setPattern] = useState<'tile' | 'single' | 'diagonal'>('single');
-  const [watermarkImage, setWatermarkImage] = useState<File | null>(null);
+  const [watermarkImageName, setWatermarkImageName] = useState<string | null>(null);
   const [watermarkImageUrl, setWatermarkImageUrl] = useState<string | null>(null);
   const [invisibleText, setInvisibleText] = useState('');
   const [mode, setMode] = useState<'text' | 'image' | 'invisible'>('text');
@@ -105,7 +105,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
   const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setWatermarkImage(file);
+      setWatermarkImageName(file.name);
       setWatermarkImageUrl(URL.createObjectURL(file));
       if (mode === 'image') {
         setTimeout(handleApply, 100);
@@ -242,7 +242,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
               onClick={() => fileInputRef.current?.click()}
               className="w-full py-2 rounded-lg border border-dashed border-input hover:border-primary/50 text-sm"
             >
-              {watermarkImageUrl ? '已选择图片' : t('addImage')}
+              {watermarkImageName ? watermarkImageName : t('addImage')}
             </button>
             {watermarkImageUrl && (
               <img src={watermarkImageUrl} alt="Watermark" className="mt-2 max-h-20 mx-auto" />

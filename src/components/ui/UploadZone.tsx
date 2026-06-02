@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Upload, ImagePlus } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -25,7 +25,7 @@ const isImageFile = (file: File): boolean => {
   return supportedImageExtensions.includes(ext);
 };
 
-export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*', hasExistingImage = false }: UploadZoneProps) {
+export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*'}: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -47,7 +47,7 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     const items = e.dataTransfer.items;
     let filesToProcess: File[] = [];
 
@@ -70,7 +70,7 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
     if (filesToProcess.length > 0) {
       // 过滤有效的图片文件
       const validImageFiles = filesToProcess.filter(isImageFile);
-      
+
       if (validImageFiles.length > 0) {
         onFilesSelected(validImageFiles);
       } else if (filesToProcess.length > 0) {

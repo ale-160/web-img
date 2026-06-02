@@ -19,16 +19,17 @@ interface CropModalProps {
 }
 
 export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, cropWidth, cropHeight, onCrop, initialX, initialY }: CropModalProps) {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const [cropPos, setCropPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
 
   // 初始化裁剪位置（居中）
   useEffect(() => {
-    if (isOpen && containerRef.current) {
+    if (isOpen && containerRef.current && imageRef.current) {
       const containerRect = containerRef.current.getBoundingClientRect();
       const scale = Math.min(
         containerRect.width / imageWidth,
@@ -39,6 +40,8 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
       const displayHeight = imageHeight * scale;
       const displayCropWidth = cropWidth * scale;
       const displayCropHeight = cropHeight * scale;
+
+      setDisplaySize({ width: displayWidth, height: displayHeight });
 
       const maxX = displayWidth - displayCropWidth;
       const maxY = displayHeight - displayCropHeight;
@@ -165,8 +168,8 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
                 style={{
                   left: cropPos.x,
                   top: cropPos.y,
-                  width: (cropWidth / imageWidth) * (imageRef.current?.width || cropWidth),
-                  height: (cropHeight / imageHeight) * (imageRef.current?.height || cropHeight),
+                  width: (cropWidth / imageWidth) * displaySize.width || cropWidth,
+                  height: (cropHeight / imageHeight) * displaySize.height || cropHeight,
                 }}
                 onMouseDown={handleMouseDown}
               >

@@ -18,8 +18,8 @@ export interface WatermarkPreset {
 
 export const sizePresets: SizePreset[] = [
   { id: 'avatar', name: '头像', nameEn: 'Avatar', width: 200, height: 200, label: '头像', labelEn: 'Avatar', fixed: true },
-  { id: 'portrait', name: '竖屏', nameEn: 'Portrait', width: 1080, height: 1920, label: '竖屏', labelEn: 'Portrait', fixed: true },
-  { id: 'square', name: '方形', nameEn: 'Square', width: 1080, height: 1080, label: '方形', labelEn: 'Square', fixed: true },
+  { id: 'portrait', name: '竖屏', nameEn: 'Portrait', width: 500, height: 1080, label: '竖屏', labelEn: 'Portrait', fixed: true },
+  { id: 'square', name: '方形', nameEn: 'Square', width: 500, height: 500, label: '方形', labelEn: 'Square', fixed: true },
   { id: 'weibo_cover', name: '微博封面', nameEn: 'Weibo Cover', width: 920, height: 300, label: '微博封面', labelEn: 'Weibo Cover', fixed: false },
   { id: 'weibo_pic', name: '微博配图', nameEn: 'Weibo Post', width: 1024, height: 1024, label: '微博配图', labelEn: 'Weibo Post', fixed: false },
   { id: 'zhihu_article', name: '知乎文章', nameEn: 'Zhihu Article', width: 690, height: 388, label: '知乎文章', labelEn: 'Zhihu Article', fixed: false },

@@ -3,7 +3,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { loadImage, mergeImages, canvasToDataUrl } from '@/utils/canvas';
-import { UploadZone } from '@/components/ui/UploadZone';
 import { X, ImagePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -21,7 +20,7 @@ export function MergePanel({ imageUrl, onApply }: MergePanelProps) {
   const [gap, setGap] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const originalImagesRef = useRef<string[]>([imageUrl]);
-  
+
   useEffect(() => {
     originalImagesRef.current = [imageUrl];
     setImages([imageUrl]);
@@ -146,7 +145,7 @@ export function MergePanel({ imageUrl, onApply }: MergePanelProps) {
 
       <div>
         <label className="block text-sm font-medium mb-2">已添加图片 ({images.length})</label>
-        <div className="grid grid-cols-3 gap-2 max-h-[120px] overflow-auto">
+        <div className="grid grid-cols-3 gap-2 max-h-30 overflow-auto">
           {images.map((url, index) => (
             <div key={index} className="relative group">
               <img

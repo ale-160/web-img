@@ -5,10 +5,10 @@ import { Moon, Sun, Download, Undo2, Redo2, Trash2, Globe, Shield, Edit2, Check,
 import { toast } from 'sonner';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
-import { useImageEditor, ImageState } from '@/hooks/useImageEditor';
+import { useImageEditor } from '@/hooks/useImageEditor';
 import { useHistoryStack } from '@/hooks/useHistoryStack';
 import { UploadZone } from '@/components/ui/UploadZone';
-import { ToolPanel, tabs } from '@/components/ui/ToolPanel';
+import { ToolPanel } from '@/components/ui/ToolPanel';
 import { CompressPanel } from '@/components/features/CompressPanel';
 import { EditPanel } from '@/components/features/EditPanel';
 import { WatermarkPanel } from '@/components/features/WatermarkPanel';
@@ -16,10 +16,8 @@ import { MergePanel } from '@/components/features/MergePanel';
 import { ColorPanel } from '@/components/features/ColorPanel';
 import { HistoryModal } from '@/components/ui/HistoryModal';
 import { downloadFile, formatFileSize } from '@/utils/file';
-import { ToolTab, exportFormats, ExportFormat } from '@/data/presets';
+import { ToolTab } from '@/data/presets';
 import {
-  saveImageState,
-  loadImageState,
   saveHistory,
   loadHistory,
   savePinned,
@@ -35,12 +33,10 @@ export default function HomePage() {
     originalImages,
     previewImage,
     addImages,
-    removeImage,
     clearImages,
     updatePreview,
     updatePreviewName,
-    resetPreview,
-    getOriginalFormat
+    resetPreview
   } = useImageEditor();
   const { canUndo, canRedo, pushState, undo, redo, clear: clearHistoryStack } = useHistoryStack();
   const [activeTab, setActiveTab] = useState<ToolTab | null>(null);
@@ -77,10 +73,10 @@ export default function HomePage() {
     const handleGlobalDrag = (e: DragEvent) => {
       e.preventDefault();
     };
-    
+
     window.addEventListener('dragover', handleGlobalDrag);
     window.addEventListener('drop', handleGlobalDrag);
-    
+
     return () => {
       window.removeEventListener('dragover', handleGlobalDrag);
       window.removeEventListener('drop', handleGlobalDrag);
@@ -501,7 +497,7 @@ export default function HomePage() {
                         <span className="text-sm font-medium">
                           预览名称：
                         </span>
-                        <span className="text-sm truncate max-w-[200px]">
+                        <span className="text-sm truncate max-w-50">
                           {getFileNameWithoutExtension(previewImage.name)}
                         </span>
                         <button

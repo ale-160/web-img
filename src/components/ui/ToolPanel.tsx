@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { ToolTab } from '@/data/presets';
+import React from "react";
 
 interface ToolPanelProps {
   activeTab: ToolTab | null;
@@ -25,7 +26,7 @@ interface ToolPanelItemProps {
   onClick: () => void;
 }
 
-function ToolPanelItem({ icon, label, labelEn, active, onClick }: ToolPanelItemProps) {
+function ToolPanelItem({ icon, label, active, onClick }: ToolPanelItemProps) {
   return (
     <button
       onClick={onClick}
