@@ -18,253 +18,209 @@ interface CropModalProps {
   initialY?: number;
 }
 
-// 控制手柄类型
 type HandleType = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw' | 'move';
 
-export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, cropWidth: targetWidth, cropHeight: targetHeight, onCrop, initialX, initialY }: CropModalProps) {
+export function CropModal({
+  isOpen,
+  onClose,
+  imageUrl,
+  imageWidth,
+  imageHeight,
+  cropWidth: targetWidth,
+  cropHeight: targetHeight,
+  onCrop,
+  initialX,
+  initialY,
+}: CropModalProps) {
   const { language } = useLanguage();
 
-  // 实际裁剪区域尺寸（可能被用户调整）
-  const [actualCropWidth, setActualCropWidth] = useState(targetWidth);
-  const [actualCropHeight, setActualCropHeight] = useState(targetHeight);
+  // 用 scale 把图像坐标 ↔ 显示坐标互转
+  const [scale, setScale] = useState(1);
+  const [displayImageSize, setDisplayImageSize] = useState({ w: 0, h: 0 });
 
-  // 裁剪框位置
-  const [cropPos, setCropPos] = useState({ x: 0, y: 0 });
-
-
+  // 裁剪框状态（显示坐标）
+  const [cropRect, setCropRect] = useState({ x: 0, y: 0, w: 0, h: 0 });
 
   // 拖拽状态
   const [isDragging, setIsDragging] = useState(false);
   const [activeHandle, setActiveHandle] = useState<HandleType | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [startCropData, setStartCropData] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [startRect, setStartRect] = useState({ x: 0, y: 0, w: 0, h: 0 });
 
-  // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  // 是否已手动调整过，避免 scale/size 变化重置用户调整
+  const hasManuallyResized = useRef(false);
 
-  // 计算显示尺寸
-  const [displayData, setDisplayData] = useState({
-    imageWidth: 0,
-    imageHeight: 0,
-    cropX: 0,
-    cropY: 0,
-    cropWidth: 0,
-    cropHeight: 0,
-    scale: 1,
-  });
-
-  // 初始化
+  // 初始化 —— 仅在 isOpen 首次变为 true，或图像/目标尺寸改变时重算
   useEffect(() => {
-    if (isOpen && containerRef.current && imageRef.current) {
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const scale = Math.min(
-        containerRect.width / imageWidth,
-        containerRect.height / imageHeight,
+    if (!isOpen || !containerRef.current) return;
+
+    // 等 DOM 渲染完毕
+    requestAnimationFrame(() => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const s = Math.min(
+        rect.width / imageWidth,
+        rect.height / imageHeight,
         1
       );
 
-      const displayImageWidth = imageWidth * scale;
-      const displayImageHeight = imageHeight * scale;
-      const displayCropWidth = actualCropWidth * scale;
-      const displayCropHeight = actualCropHeight * scale;
+      const dIW = imageWidth * s;
+      const dIH = imageHeight * s;
+      const dCW = targetWidth * s;
+      const dCH = targetHeight * s;
 
-      const maxX = displayImageWidth - displayCropWidth;
-      const maxY = displayImageHeight - displayCropHeight;
+      const maxX = dIW - dCW;
+      const maxY = dIH - dCH;
 
-      let newX;
-      let newY;
+      let ix = initialX !== undefined ? initialX * s : maxX / 2;
+      let iy = initialY !== undefined ? initialY * s : maxY / 2;
+      ix = Math.max(0, Math.min(ix, maxX));
+      iy = Math.max(0, Math.min(iy, maxY));
 
-      if (initialX !== undefined && initialY !== undefined) {
-        newX = initialX * scale;
-        newY = initialY * scale;
-      } else {
-        newX = Math.max(0, maxX / 2);
-        newY = Math.max(0, maxY / 2);
-      }
+      setScale(s);
+      setDisplayImageSize({ w: dIW, h: dIH });
+      setCropRect({ x: ix, y: iy, w: dCW, h: dCH });
+      hasManuallyResized.current = false;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, imageWidth, imageHeight, targetWidth, targetHeight]);
 
-      newX = Math.max(0, Math.min(newX, maxX));
-      newY = Math.max(0, Math.min(newY, maxY));
-
-      setCropPos({ x: newX, y: newY });
-      setDisplayData({
-        imageWidth: displayImageWidth,
-        imageHeight: displayImageHeight,
-        cropX: newX,
-        cropY: newY,
-        cropWidth: displayCropWidth,
-        cropHeight: displayCropHeight,
-        scale,
-      });
-    }
-  }, [isOpen, imageWidth, imageHeight, actualCropWidth, actualCropHeight, initialX, initialY]);
-
-  // 处理手柄/移动拖拽开始
+  // 鼠标按下
   const handleMouseDown = useCallback((e: React.MouseEvent, handleType: HandleType = 'move') => {
     e.preventDefault();
     e.stopPropagation();
     setActiveHandle(handleType);
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
-    setStartCropData({
-      x: cropPos.x,
-      y: cropPos.y,
-      width: displayData.cropWidth,
-      height: displayData.cropHeight,
-    });
-  }, [cropPos, displayData]);
+    setStartRect({ ...cropRect });
+  }, [cropRect]);
 
-  // 处理拖拽移动
+  // 鼠标移动（全局）
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !activeHandle) return;
     e.preventDefault();
 
-    const deltaX = e.clientX - dragStart.x;
-    const deltaY = e.clientY - dragStart.y;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    const dIW = displayImageSize.w;
+    const dIH = displayImageSize.h;
 
-    // 处理移动或调整大小
+    let { x, y, w, h } = startRect;
+    const minPx = 30; // 最小显示像素
+
     if (activeHandle === 'move') {
-      const maxX = displayData.imageWidth - displayData.cropWidth;
-      const maxY = displayData.imageHeight - displayData.cropHeight;
-
-      let newX = startCropData.x + deltaX;
-      let newY = startCropData.y + deltaY;
-
-      newX = Math.max(0, Math.min(newX, maxX));
-      newY = Math.max(0, Math.min(newY, maxY));
-
-      setCropPos({ x: newX, y: newY });
+      x = Math.max(0, Math.min(startRect.x + dx, dIW - w));
+      y = Math.max(0, Math.min(startRect.y + dy, dIH - h));
     } else {
-      // 处理调整大小 - 保持宽高比
-      const aspectRatio = targetWidth / targetHeight;
+      // 有宽高比锁定时用 targetWidth/targetHeight 计算
+      const aspect = targetWidth / targetHeight;
 
-      let newWidth = startCropData.width;
-      let newHeight = startCropData.height;
-      let newX = startCropData.x;
-      let newY = startCropData.y;
-
-      // 根据手柄类型决定如何调整
       switch (activeHandle) {
         case 'e':
-          newWidth = startCropData.width + deltaX;
-          newHeight = newWidth / aspectRatio;
+          w = Math.max(minPx, startRect.w + dx);
+          h = w / aspect;
           break;
         case 'w':
-          newWidth = startCropData.width - deltaX;
-          newHeight = newWidth / aspectRatio;
-          newX = startCropData.x + deltaX;
+          w = Math.max(minPx, startRect.w - dx);
+          h = w / aspect;
+          x = startRect.x + startRect.w - w;
           break;
         case 's':
-          newHeight = startCropData.height + deltaY;
-          newWidth = newHeight * aspectRatio;
+          h = Math.max(minPx, startRect.h + dy);
+          w = h * aspect;
           break;
         case 'n':
-          newHeight = startCropData.height - deltaY;
-          newWidth = newHeight * aspectRatio;
-          newY = startCropData.y + deltaY;
+          h = Math.max(minPx, startRect.h - dy);
+          w = h * aspect;
+          y = startRect.y + startRect.h - h;
           break;
         case 'se':
-          newWidth = startCropData.width + deltaX;
-          newHeight = newWidth / aspectRatio;
+          w = Math.max(minPx, startRect.w + dx);
+          h = w / aspect;
           break;
         case 'sw':
-          newWidth = startCropData.width - deltaX;
-          newHeight = newWidth / aspectRatio;
-          newX = startCropData.x + deltaX;
+          w = Math.max(minPx, startRect.w - dx);
+          h = w / aspect;
+          x = startRect.x + startRect.w - w;
           break;
         case 'ne':
-          newHeight = startCropData.height - deltaY;
-          newWidth = newHeight * aspectRatio;
-          newY = startCropData.y + deltaY;
+          h = Math.max(minPx, startRect.h - dy);
+          w = h * aspect;
+          y = startRect.y + startRect.h - h;
           break;
         case 'nw':
-          newWidth = startCropData.width - deltaX;
-          newHeight = newWidth / aspectRatio;
-          newX = startCropData.x + deltaX;
-          newY = startCropData.y + deltaY;
+          w = Math.max(minPx, startRect.w - dx);
+          h = w / aspect;
+          x = startRect.x + startRect.w - w;
+          y = startRect.y + startRect.h - h;
           break;
       }
 
-      // 限制最小尺寸
-      const minSize = 50;
-      if (newWidth < minSize) newWidth = minSize;
-      if (newHeight < minSize) newHeight = minSize;
-
-      if (newX < 0) {
-        const adjust = -newX;
-        newX = 0;
-        newWidth = startCropData.width + adjust;
-        newHeight = newWidth / aspectRatio;
-      }
-
-      if (newY < 0) {
-        const adjust = -newY;
-        newY = 0;
-        newHeight = startCropData.height + adjust;
-        newWidth = newHeight * aspectRatio;
-      }
-
-      if (newX + newWidth > displayData.imageWidth) {
-        newWidth = displayData.imageWidth - newX;
-        newHeight = newWidth / aspectRatio;
-      }
-
-      if (newY + newHeight > displayData.imageHeight) {
-        newHeight = displayData.imageHeight - newY;
-        newWidth = newHeight * aspectRatio;
-      }
-
-      // 更新裁剪尺寸
-      setActualCropWidth(Math.round(newWidth / displayData.scale));
-      setActualCropHeight(Math.round(newHeight / displayData.scale));
-      setCropPos({ x: newX, y: newY });
+      // 边界约束
+      if (x < 0) { x = 0; }
+      if (y < 0) { y = 0; }
+      if (x + w > dIW) { w = dIW - x; h = w / aspect; }
+      if (y + h > dIH) { h = dIH - y; w = h * aspect; }
     }
-  }, [isDragging, activeHandle, dragStart, startCropData, displayData, targetWidth, targetHeight]);
+
+    hasManuallyResized.current = true;
+    setCropRect({ x, y, w, h });
+  }, [isDragging, activeHandle, dragStart, startRect, displayImageSize, targetWidth, targetHeight]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     setActiveHandle(null);
   }, []);
 
-  // 全局事件监听
   useEffect(() => {
     if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove as any);
+      window.addEventListener('mousemove', handleMouseMove as EventListener);
       window.addEventListener('mouseup', handleMouseUp);
       return () => {
-        window.removeEventListener('mousemove', handleMouseMove as any);
+        window.removeEventListener('mousemove', handleMouseMove as EventListener);
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // 确认裁剪
+  // 确认裁剪 —— 将显示坐标转换为图像坐标
   const handleConfirm = useCallback(() => {
-    const realX = cropPos.x / displayData.scale;
-    const realY = cropPos.y / displayData.scale;
-
-    onCrop(realX, realY, actualCropWidth, actualCropHeight);
+    const realX = Math.round(cropRect.x / scale);
+    const realY = Math.round(cropRect.y / scale);
+    const realW = Math.round(cropRect.w / scale);
+    const realH = Math.round(cropRect.h / scale);
+    onCrop(realX, realY, realW, realH);
     onClose();
-  }, [cropPos, displayData.scale, actualCropWidth, actualCropHeight, onCrop, onClose]);
+  }, [cropRect, scale, onCrop, onClose]);
 
-  // 重置
   const handleReset = useCallback(() => {
-    setActualCropWidth(targetWidth);
-    setActualCropHeight(targetHeight);
-  }, [targetWidth, targetHeight]);
+    hasManuallyResized.current = false;
+    const dCW = targetWidth * scale;
+    const dCH = targetHeight * scale;
+    const maxX = displayImageSize.w - dCW;
+    const maxY = displayImageSize.h - dCH;
+    setCropRect({ x: Math.max(0, maxX / 2), y: Math.max(0, maxY / 2), w: dCW, h: dCH });
+  }, [targetWidth, targetHeight, scale, displayImageSize]);
 
   if (!isOpen) return null;
+
+  // 当前实际裁剪尺寸（像素）
+  const displayW = Math.round(cropRect.w / scale);
+  const displayH = Math.round(cropRect.h / scale);
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh] overflow-hidden">
+        {/* 头部 */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-4">
             <h3 className="font-semibold">
               {language === 'zh' ? '选择裁剪区域' : 'Select Crop Area'}
             </h3>
             <span className="text-sm text-muted-foreground">
-              {actualCropWidth} × {actualCropHeight}
+              {displayW} × {displayH}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -274,156 +230,83 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
             >
               {language === 'zh' ? '重置' : 'Reset'}
             </button>
-            <button
-              onClick={onClose}
-              className="p-2 rounded hover:bg-muted"
-            >
+            <button onClick={onClose} className="p-2 rounded hover:bg-muted">
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
+        {/* 裁剪区域 */}
         <div className="flex-1 overflow-auto p-4">
           <div
             ref={containerRef}
             className="relative w-full h-full flex items-center justify-center"
             style={{ minHeight: '400px' }}
           >
-            <div className="relative" style={{ width: displayData.imageWidth, height: displayData.imageHeight }}>
+            <div
+              className="relative"
+              style={{ width: displayImageSize.w, height: displayImageSize.h }}
+            >
+              {/* 图像 */}
               <img
                 ref={imageRef}
                 src={imageUrl}
                 alt="Crop Preview"
                 className="block"
-                style={{
-                  width: displayData.imageWidth,
-                  height: displayData.imageHeight,
-                  objectFit: 'contain',
-                }}
+                style={{ width: displayImageSize.w, height: displayImageSize.h, objectFit: 'contain' }}
+                draggable={false}
               />
 
-
-              {/* 裁剪框遮罩层 */}
+              {/* 遮罩层 */}
               <div className="absolute inset-0 pointer-events-none">
-                {/* 顶部遮罩 */}
-                <div
-                  className="absolute bg-black/50"
-                  style={{
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: cropPos.y
-                  }}
-                />
-                {/* 底部遮罩 */}
-                <div
-                  className="absolute bg-black/50"
-                  style={{
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: displayData.imageHeight - cropPos.y - displayData.cropHeight
-                  }}
-                />
-                {/* 左侧遮罩 */}
-                <div
-                  className="absolute bg-black/50"
-                  style={{
-                    top: cropPos.y,
-                    left: 0,
-                    width: cropPos.x,
-                    height: displayData.cropHeight
-                  }}
-                />
-                {/* 右侧遮罩 */}
-                <div
-                  className="absolute bg-black/50"
-                  style={{
-                    top: cropPos.y,
-                    right: 0,
-                    width: displayData.imageWidth - cropPos.x - displayData.cropWidth,
-                    height: displayData.cropHeight
-                  }}
-                />
+                {/* 上 */}
+                <div className="absolute bg-black/50" style={{ top: 0, left: 0, right: 0, height: cropRect.y }} />
+                {/* 下 */}
+                <div className="absolute bg-black/50" style={{ bottom: 0, left: 0, right: 0, height: Math.max(0, displayImageSize.h - cropRect.y - cropRect.h) }} />
+                {/* 左 */}
+                <div className="absolute bg-black/50" style={{ top: cropRect.y, left: 0, width: cropRect.x, height: cropRect.h }} />
+                {/* 右 */}
+                <div className="absolute bg-black/50" style={{ top: cropRect.y, right: 0, width: Math.max(0, displayImageSize.w - cropRect.x - cropRect.w), height: cropRect.h }} />
               </div>
 
               {/* 裁剪框 */}
               <div
-                className={cn(
-                  'absolute border-2 border-primary pointer-events-auto',
-                  isDragging ? '' : 'cursor-move'
-                )}
-                style={{
-                  left: cropPos.x,
-                  top: cropPos.y,
-                  width: displayData.cropWidth,
-                  height: displayData.cropHeight,
-                }}
+                className={cn('absolute border-2 border-primary pointer-events-auto', isDragging ? '' : 'cursor-move')}
+                style={{ left: cropRect.x, top: cropRect.y, width: cropRect.w, height: cropRect.h }}
                 onMouseDown={(e) => handleMouseDown(e, 'move')}
               >
-                {/* 边角手柄 */}
-                <div
-                  className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-primary rounded-full cursor-nw-resize"
-                  onMouseDown={(e) => handleMouseDown(e, 'nw')}
-                />
-                <div
-                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full cursor-ne-resize"
-                  onMouseDown={(e) => handleMouseDown(e, 'ne')}
-                />
-                <div
-                  className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-primary rounded-full cursor-sw-resize"
-                  onMouseDown={(e) => handleMouseDown(e, 'sw')}
-                />
-                <div
-                  className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full cursor-se-resize"
-                  onMouseDown={(e) => handleMouseDown(e, 'se')}
-                />
-
-                {/* 边框中点手柄 */}
-                <div
-                  className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rounded-full cursor-n-resize"
-                  onMouseDown={(e) => handleMouseDown(e, 'n')}
-                />
-                <div
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 -mb-1.5 w-4 h-4 bg-primary rounded-full cursor-s-resize"
-                  onMouseDown={(e) => handleMouseDown(e, 's')}
-                />
-                <div
-                  className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-4 h-4 bg-primary rounded-full cursor-w-resize"
-                  onMouseDown={(e) => handleMouseDown(e, 'w')}
-                />
-                <div
-                  className="absolute top-1/2 right-0 -translate-y-1/2 -mr-1.5 w-4 h-4 bg-primary rounded-full cursor-e-resize"
-                  onMouseDown={(e) => handleMouseDown(e, 'e')}
-                />
-
-                {/* 网格辅助线 */}
+                {/* 角点手柄 */}
+                <div className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-primary rounded-full cursor-nw-resize" onMouseDown={(e) => handleMouseDown(e, 'nw')} />
+                <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full cursor-ne-resize" onMouseDown={(e) => handleMouseDown(e, 'ne')} />
+                <div className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-primary rounded-full cursor-sw-resize" onMouseDown={(e) => handleMouseDown(e, 'sw')} />
+                <div className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full cursor-se-resize" onMouseDown={(e) => handleMouseDown(e, 'se')} />
+                {/* 边中点手柄 */}
+                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rounded-full cursor-n-resize" onMouseDown={(e) => handleMouseDown(e, 'n')} />
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rounded-full cursor-s-resize" onMouseDown={(e) => handleMouseDown(e, 's')} />
+                <div className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-4 h-4 bg-primary rounded-full cursor-w-resize" onMouseDown={(e) => handleMouseDown(e, 'w')} />
+                <div className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-4 h-4 bg-primary rounded-full cursor-e-resize" onMouseDown={(e) => handleMouseDown(e, 'e')} />
+                {/* 三等分辅助线 */}
                 <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute top-1/3 left-0 right-0 border-t border-dashed border-primary/30" />
-                  <div className="absolute top-2/3 left-0 right-0 border-t border-dashed border-primary/30" />
-                  <div className="absolute left-1/3 top-0 bottom-0 border-l border-dashed border-primary/30" />
-                  <div className="absolute left-2/3 top-0 bottom-0 border-l border-dashed border-primary/30" />
+                  <div className="absolute top-1/3 left-0 right-0 border-t border-dashed border-primary/40" />
+                  <div className="absolute top-2/3 left-0 right-0 border-t border-dashed border-primary/40" />
+                  <div className="absolute left-1/3 top-0 bottom-0 border-l border-dashed border-primary/40" />
+                  <div className="absolute left-2/3 top-0 bottom-0 border-l border-dashed border-primary/40" />
                 </div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* 底部操作 */}
         <div className="flex items-center justify-between gap-2 p-4 border-t border-border">
           <div className="text-sm text-muted-foreground">
             {language === 'zh' ? '拖动裁剪框选择区域，拖动手柄调整大小' : 'Drag to move, drag handles to resize'}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80"
-            >
+            <button onClick={onClose} className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80">
               {language === 'zh' ? '取消' : 'Cancel'}
             </button>
-            <button
-              onClick={handleConfirm}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
-            >
+            <button onClick={handleConfirm} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">
               {language === 'zh' ? '确认裁剪' : 'Confirm Crop'}
             </button>
           </div>

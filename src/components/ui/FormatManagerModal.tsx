@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { X, Pin, PinOff, ExternalLink } from 'lucide-react';
+import { X, Pin, PinOff, ExternalLink, ChevronUp, ChevronDown } from 'lucide-react';
 import { FormatPreset } from '@/data/presets';
 
 interface FormatManagerModalProps {
@@ -16,15 +16,47 @@ export function FormatManagerModal({ isOpen, onClose, formats, onFormatsChange }
   const { language } = useLanguage();
 
   const handleToggleFixed = useCallback((id: string) => {
-    onFormatsChange(formats.map(format => {
-      if (format.id === id) {
-        return { ...format, fixed: !format.fixed };
-      }
-      return format;
-    }));
+    const idx = formats.findIndex(f => f.id === id);
+    if (idx === -1) return;
+    const item = formats[idx];
+    const newFixed = !item.fixed;
+    const updated = [...formats];
+    updated.splice(idx, 1);
+
+    if (newFixed) {
+      const lastFixedIdx = updated.findLastIndex((f: FormatPreset) => f.fixed);
+      updated.splice(lastFixedIdx + 1, 0, { ...item, fixed: true });
+    } else {
+      const lastFixedIdx = updated.findLastIndex((f: FormatPreset) => f.fixed);
+      updated.splice(lastFixedIdx + 1, 0, { ...item, fixed: false });
+    }
+    onFormatsChange(updated);
+  }, [formats, onFormatsChange]);
+
+  const handleMoveUp = useCallback((id: string) => {
+    const idx = formats.findIndex(f => f.id === id);
+    if (idx <= 0) return;
+    const updated = [...formats];
+    [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
+    onFormatsChange(updated);
+  }, [formats, onFormatsChange]);
+
+  const handleMoveDown = useCallback((id: string) => {
+    const idx = formats.findIndex(f => f.id === id);
+    if (idx === -1 || idx >= formats.length - 1) return;
+    const updated = [...formats];
+    [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];
+    onFormatsChange(updated);
   }, [formats, onFormatsChange]);
 
   if (!isOpen) return null;
+
+  // 排序显示：固定的在上
+  const sortedFormats = [...formats].sort((a, b) => {
+    if (a.fixed && !b.fixed) return -1;
+    if (!a.fixed && b.fixed) return 1;
+    return 0;
+  });
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -40,11 +72,11 @@ export function FormatManagerModal({ isOpen, onClose, formats, onFormatsChange }
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <div className="overflow-y-auto p-4 flex-1 min-h-0">
           <div className="space-y-2 mb-4">
-            {formats.map((format) => (
-              <div key={format.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+            {sortedFormats.map((format, idx) => (
+              <div key={format.id} className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
                 <div className="flex-1">
                   <div className="font-medium">
                     {language === 'zh' ? format.name : format.nameEn}
@@ -53,6 +85,25 @@ export function FormatManagerModal({ isOpen, onClose, formats, onFormatsChange }
                     {format.extension}
                   </div>
                 </div>
+                {/* 上移 */}
+                <button
+                  onClick={() => handleMoveUp(format.id)}
+                  disabled={idx === 0}
+                  className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                  title={language === 'zh' ? '上移' : 'Move Up'}
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+                {/* 下移 */}
+                <button
+                  onClick={() => handleMoveDown(format.id)}
+                  disabled={idx === sortedFormats.length - 1}
+                  className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                  title={language === 'zh' ? '下移' : 'Move Down'}
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+                {/* 固定 */}
                 <button
                   onClick={() => handleToggleFixed(format.id)}
                   className={`p-2 rounded hover:bg-muted/70 ${format.fixed ? 'text-yellow-600' : ''}`}
@@ -63,7 +114,7 @@ export function FormatManagerModal({ isOpen, onClose, formats, onFormatsChange }
               </div>
             ))}
           </div>
-          
+
           <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
             <a
               href="https://ale160.com"

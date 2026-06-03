@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { X, Plus, Trash2, Edit2, Check, Pin, PinOff } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Check, Pin, PinOff, ChevronUp, ChevronDown } from 'lucide-react';
 import { SizePreset } from '@/data/presets';
 
 interface PresetManagerModalProps {
@@ -19,7 +19,6 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
   const [editWidth, setEditWidth] = useState<string>('');
   const [editHeight, setEditHeight] = useState<string>('');
 
-  // 计算下一个新预设的编号
   const getNextPresetNumber = useCallback(() => {
     let maxNum = 0;
     presets.forEach(p => {
@@ -86,15 +85,49 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
   }, []);
 
   const handleToggleFixed = useCallback((id: string) => {
-    onPresetsChange(presets.map(p => {
-      if (p.id === id) {
-        return { ...p, fixed: !p.fixed };
-      }
-      return p;
-    }));
+    const idx = presets.findIndex(p => p.id === id);
+    if (idx === -1) return;
+    const item = presets[idx];
+    const newFixed = !item.fixed;
+    const updated = [...presets];
+    updated.splice(idx, 1);
+
+    if (newFixed) {
+      // 固定：插入到最后一个固定项之后
+      const lastFixedIdx = updated.findLastIndex((p: SizePreset) => p.fixed);
+      updated.splice(lastFixedIdx + 1, 0, { ...item, fixed: true });
+    } else {
+      // 取消固定：插入到最后一个固定项之后（即未固定区域开头）
+      const lastFixedIdx = updated.findLastIndex((p: SizePreset) => p.fixed);
+      updated.splice(lastFixedIdx + 1, 0, { ...item, fixed: false });
+    }
+    onPresetsChange(updated);
+  }, [presets, onPresetsChange]);
+
+  const handleMoveUp = useCallback((id: string) => {
+    const idx = presets.findIndex(p => p.id === id);
+    if (idx <= 0) return;
+    const updated = [...presets];
+    [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
+    onPresetsChange(updated);
+  }, [presets, onPresetsChange]);
+
+  const handleMoveDown = useCallback((id: string) => {
+    const idx = presets.findIndex(p => p.id === id);
+    if (idx === -1 || idx >= presets.length - 1) return;
+    const updated = [...presets];
+    [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];
+    onPresetsChange(updated);
   }, [presets, onPresetsChange]);
 
   if (!isOpen) return null;
+
+  // 排序显示：固定的在上
+  const sortedPresets = [...presets].sort((a, b) => {
+    if (a.fixed && !b.fixed) return -1;
+    if (!a.fixed && b.fixed) return 1;
+    return 0; // 保持原有顺序
+  });
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -110,10 +143,10 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <div className="overflow-y-auto p-4 flex-1 min-h-0">
           <div className="space-y-2 mb-4">
-            {presets.map((preset) => (
+            {sortedPresets.map((preset, idx) => (
               <div key={preset.id} className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
                 {editingId === preset.id ? (
                   <>
@@ -182,6 +215,25 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                         </div>
                       )}
                     </div>
+                    {/* 上移 */}
+                    <button
+                      onClick={() => handleMoveUp(preset.id)}
+                      disabled={idx === 0}
+                      className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                      title={language === 'zh' ? '上移' : 'Move Up'}
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    {/* 下移 */}
+                    <button
+                      onClick={() => handleMoveDown(preset.id)}
+                      disabled={idx === sortedPresets.length - 1}
+                      className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                      title={language === 'zh' ? '下移' : 'Move Down'}
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                    {/* 固定 */}
                     <button
                       onClick={() => handleToggleFixed(preset.id)}
                       className={`p-2 rounded hover:bg-muted/70 ${preset.fixed ? 'text-yellow-600' : ''}`}

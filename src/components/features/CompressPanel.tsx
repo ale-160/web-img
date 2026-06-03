@@ -10,6 +10,7 @@ import { Settings, Crop as CropIcon, Plus } from 'lucide-react';
 import { PresetManagerModal } from '@/components/ui/PresetManagerModal';
 import { CropModal } from '@/components/ui/CropModal';
 import { FormatManagerModal } from '@/components/ui/FormatManagerModal';
+import { SliderWithInput } from '@/components/ui/SliderWithInput';
 
 interface AdjustPanelProps {
   imageUrl: string;
@@ -18,6 +19,10 @@ interface AdjustPanelProps {
   imageSize: number;
   onApply: (imageData: string, width: number, height: number) => void;
   resetSignal?: number;
+  /** 是否已水平镜像 */
+  isFlipped?: boolean;
+  /** 旋转角度 (0, 90, 180, 270) */
+  rotation?: number;
 }
 
 const DEFAULT_VALUES = {
@@ -32,9 +37,9 @@ const DEFAULT_VALUES = {
   contrast: 100,
   saturate: 100,
   blur: 0,
-  r: 100,
-  g: 100,
-  b: 100,
+  r: 0,
+  g: 0,
+  b: 0,
 };
 
 export function AdjustPanel({
@@ -44,6 +49,8 @@ export function AdjustPanel({
   imageSize: _imageSize,
   onApply,
   resetSignal = 0,
+  isFlipped = false,
+  rotation = 0,
 }: AdjustPanelProps) {
   const { language } = useLanguage();
 
@@ -67,6 +74,12 @@ export function AdjustPanel({
   const [r, setR] = useState(DEFAULT_VALUES.r);
   const [g, setG] = useState(DEFAULT_VALUES.g);
   const [b, setB] = useState(DEFAULT_VALUES.b);
+
+  // 同步镜像/旋转状态（由父组件控制）
+  const isFlippedRef = useRef(isFlipped);
+  const rotationRef = useRef(rotation);
+  useEffect(() => { isFlippedRef.current = isFlipped; }, [isFlipped]);
+  useEffect(() => { rotationRef.current = rotation; }, [rotation]);
 
   // 模态框状态
   const [showPresetManager, setShowPresetManager] = useState(false);
@@ -149,28 +162,48 @@ export function AdjustPanel({
     originalImageRef.current = { url: imageUrl, width: imageWidth, height: imageHeight };
   }, [imageUrl, imageWidth, imageHeight]);
 
-  // 处理效果函数
+  // 处理效果函数（含 RGB 调整、镜像、旋转）
   const applyEffects = useCallback(async (img: HTMLImageElement) => {
-    const { canvas, ctx } = createCanvas(img.width, img.height);
+    const rot = rotationRef.current;
+    // 旋转 90/270 时需要交换宽高
+    const isRot90 = rot === 90 || rot === 270;
+    const cw = isRot90 ? img.height : img.width;
+    const ch = isRot90 ? img.width : img.height;
+    const { canvas, ctx } = createCanvas(cw, ch);
 
-    // 应用滤镜
-    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) blur(${blur}px)`;
-    ctx.drawImage(img, 0, 0);
+    // 应用镜像 + 旋转
+    ctx.save();
+    ctx.translate(cw / 2, ch / 2);
+    if (isFlippedRef.current) {
+      ctx.scale(-1, 1);
+    }
+    if (rot) {
+      ctx.rotate((rot * Math.PI) / 180);
+    }
+    // 先绘制原图
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    ctx.restore();
 
-    // 重置滤镜以应用RGB
+    // 应用滤镜效果
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = cw;
+    tempCanvas.height = ch;
+    const tempCtx = tempCanvas.getContext('2d')!;
+    tempCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) blur(${blur}px)`;
+    tempCtx.drawImage(canvas, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
     ctx.filter = 'none';
+    ctx.drawImage(tempCanvas, 0, 0);
 
-    // 应用RGB调整
-    if (r !== 100 || g !== 100 || b !== 100) {
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // RGB 通道微调：加法模式（-100 ~ +100），0 = 无变化
+    if (r !== 0 || g !== 0 || b !== 0) {
+      const imageData = ctx.getImageData(0, 0, cw, ch);
       const data = imageData.data;
-
       for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.min(255, Math.max(0, Math.round(data[i] * (r / 100))));
-        data[i + 1] = Math.min(255, Math.max(0, Math.round(data[i + 1] * (g / 100))));
-        data[i + 2] = Math.min(255, Math.max(0, Math.round(data[i + 2] * (b / 100))));
+        data[i]     = Math.min(255, Math.max(0, data[i]     + r));
+        data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + g));
+        data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + b));
       }
-
       ctx.putImageData(imageData, 0, 0);
     }
 
@@ -280,93 +313,7 @@ export function AdjustPanel({
     setTimeout(() => handleApply(), 0);
   }, [handleApply]);
 
-  // 可编辑数值的滑块组件
-  const SliderWithInput = ({
-    label,
-    value,
-    onChange,
-    onChangeEnd,
-    min,
-    max,
-    suffix = '%',
-    labelClass = '',
-  }: {
-    label: string;
-    value: number;
-    onChange: (val: number) => void;
-    onChangeEnd: () => void;
-    min: number;
-    max: number;
-    suffix?: string;
-    labelClass?: string;
-  }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [inputValue, setInputValue] = useState(String(value));
-
-    useEffect(() => {
-      setInputValue(String(value));
-    }, [value]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInputValue(e.target.value);
-    };
-
-    const handleInputBlur = () => {
-      let val = Number(inputValue);
-      if (isNaN(val)) val = value;
-      val = Math.max(min, Math.min(max, val));
-      onChange(val);
-      setIsEditing(false);
-      onChangeEnd();
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        handleInputBlur();
-      } else if (e.key === 'Escape') {
-        setInputValue(String(value));
-        setIsEditing(false);
-      }
-    };
-
-    return (
-      <div>
-        <div className={`flex items-center mb-1 ${labelClass}`}>
-          <span className="text-sm font-medium">{label}：</span>
-          {isEditing ? (
-            <input
-              type="number"
-              value={inputValue}
-              onChange={handleInputChange}
-              onBlur={handleInputBlur}
-              onKeyDown={handleKeyDown}
-              autoFocus
-              className="w-12 px-1 py-0 text-sm bg-muted border border-border rounded text-center"
-              min={min}
-              max={max}
-            />
-          ) : (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              {value}{suffix}
-            </button>
-          )}
-        </div>
-        <input
-          type="range"
-          min={min}
-          max={max}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          onMouseUp={onChangeEnd}
-          onTouchEnd={onChangeEnd}
-          className="w-full"
-        />
-      </div>
-    );
-  };
+  // 裁剪回调
 
   return (
     <div className="flex flex-col gap-4">
@@ -587,43 +534,43 @@ export function AdjustPanel({
       {/* 分割线 */}
       <div className="border-t border-border my-2"></div>
 
-      {/* RGB调整 */}
+      {/* RGB通道微调 */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">{language === 'zh' ? 'RGB调整' : 'RGB Adjustments'}</h3>
+        <h3 className="text-sm font-medium">{language === 'zh' ? 'RGB 通道微调' : 'RGB Adjustments'}</h3>
 
-        {/* 红色 */}
+        {/* 红色通道 */}
         <SliderWithInput
           label="R"
           value={r}
           onChange={setR}
           onChangeEnd={handleSliderChangeEnd}
-          min={0}
-          max={200}
-          suffix="%"
+          min={-100}
+          max={100}
+          suffix=""
           labelClass="text-red-500"
         />
 
-        {/* 绿色 */}
+        {/* 绿色通道 */}
         <SliderWithInput
           label="G"
           value={g}
           onChange={setG}
           onChangeEnd={handleSliderChangeEnd}
-          min={0}
-          max={200}
-          suffix="%"
+          min={-100}
+          max={100}
+          suffix=""
           labelClass="text-green-500"
         />
 
-        {/* 蓝色 */}
+        {/* 蓝色通道 */}
         <SliderWithInput
           label="B"
           value={b}
           onChange={setB}
           onChangeEnd={handleSliderChangeEnd}
-          min={0}
-          max={200}
-          suffix="%"
+          min={-100}
+          max={100}
+          suffix=""
           labelClass="text-blue-500"
         />
       </div>

@@ -21,14 +21,17 @@
 }
 
 :root {
+  /* 背景/前景 */
   --background: #fafafa;
   --foreground: #18181b;
   --card: #ffffff;
   --card-foreground: #18181b;
   --popover: #ffffff;
   --popover-foreground: #18181b;
+  /* 品牌色 */
   --primary: #2563eb;
   --primary-foreground: #ffffff;
+  /* 语义色 */
   --secondary: #f4f4f5;
   --secondary-foreground: #18181b;
   --muted: #f4f4f5;
@@ -36,28 +39,34 @@
   --accent: #f4f4f5;
   --accent-foreground: #18181b;
   --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  /* 边框/输入/聚焦 */
   --border: #e4e4e7;
   --input: #e4e4e7;
   --ring: #2563eb;
+  /* 圆角 */
   --radius: 0.6rem;
 }
 
 .dark {
+  /* 背景/前景 */
   --background: #0a0a0a;
   --foreground: #fafafa;
   --card: #18181b;
   --card-foreground: #fafafa;
   --popover: #18181b;
   --popover-foreground: #fafafa;
+  /* 品牌色 */
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
+  /* 语义色 */
   --secondary: #27272a;
   --secondary-foreground: #fafafa;
   --muted: #27272a;
   --muted-foreground: #a1a1aa;
   --accent: #27272a;
   --accent-foreground: #fafafa;
-  --destructive: #ef4444;
+  /* 边框/输入/聚焦 */
   --border: #27272a;
   --input: #27272a;
   --ring: #3b82f6;
@@ -128,14 +137,20 @@ select {
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-/* 滑块样式 */
+/* 滑块样式 - 确保浅色/深色主题均可见 */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 6px;
-  background: var(--border);
+  background: var(--muted-foreground);
+  opacity: 0.45;
   border-radius: 3px;
   outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]:hover {
+  opacity: 0.7;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -147,12 +162,35 @@ input[type="range"]::-webkit-slider-thumb {
   background: var(--primary);
   cursor: pointer;
   border: 2px solid var(--primary-foreground);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: transform 100ms ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 100ms ease, box-shadow 100ms ease;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.1);
+}
+
+/* Firefox 滑块 */
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  background: var(--muted-foreground);
+  opacity: 0.45;
+  border-radius: 3px;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  border: 2px solid var(--primary-foreground);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 /* dark mode 图片预览背景 */

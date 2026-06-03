@@ -26,7 +26,8 @@ export default function HomePage() {
     clearImages,
     updatePreview,
     updatePreviewName,
-    resetPreview
+    resetPreview,
+    getOriginalFormat,
   } = useImageEditor();
   const [activeTab, setActiveTab] = useState<ToolTab | null>(null);
   const [isEditingFileName, setIsEditingFileName] = useState(false);
@@ -37,6 +38,8 @@ export default function HomePage() {
   const [showFullscreenImage, setShowFullscreenImage] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
   const [sidebarPinned, setSidebarPinned] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [rotation, setRotation] = useState(0);
 
   const isMounted = langMounted && themeMounted;
 
@@ -97,16 +100,41 @@ export default function HomePage() {
 
   const handleClearAll = useCallback(() => {
     clearImages();
+    setIsFlipped(false);
+    setRotation(0);
+    setActiveTab(null);
   }, [clearImages]);
 
   const handleReset = useCallback(() => {
     resetPreview();
     setResetSignal(prev => prev + 1);
+    setIsFlipped(false);
+    setRotation(0);
   }, [resetPreview]);
 
   const getFileNameWithoutExtension = (filename: string) => {
     const lastDotIndex = filename.lastIndexOf('.');
     return lastDotIndex > 0 ? filename.substring(0, lastDotIndex) : filename;
+  };
+
+  /** 从 dataURL 或文件名中提取格式扩展名（如 .jpg）*/
+  const getFormatExtension = (url: string, filename: string): string => {
+    // 优先从 dataURL MIME 类型判断
+    if (url.startsWith('data:')) {
+      const mime = url.split(';')[0].split(':')[1];
+      const mimeMap: Record<string, string> = {
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+        'image/webp': '.webp',
+        'image/gif': '.gif',
+        'image/bmp': '.bmp',
+        'image/tiff': '.tiff',
+      };
+      return mimeMap[mime] ?? '.jpg';
+    }
+    // 从文件名后缀推断
+    const lastDot = filename.lastIndexOf('.');
+    return lastDot > 0 ? filename.substring(lastDot).toLowerCase() : '';
   };
 
   const getDataUrlSize = (dataUrl: string) => {
@@ -173,9 +201,15 @@ export default function HomePage() {
     ctx.rotate((angle * Math.PI) / 180);
     ctx.drawImage(img, -img.width / 2, -img.height / 2);
 
-    updatePreview(canvas.toDataURL(), canvas.width, canvas.height);
+    // 保持原始图片格式
+    const origFmt = getOriginalFormat() ?? 'jpeg';
+    const mimeType = origFmt === 'png' ? 'image/png' : origFmt === 'webp' ? 'image/webp' : 'image/jpeg';
+    const quality = mimeType === 'image/jpeg' ? 0.95 : undefined;
+    const dataUrl = quality !== undefined ? canvas.toDataURL(mimeType, quality) : canvas.toDataURL(mimeType);
+    updatePreview(dataUrl, canvas.width, canvas.height);
+    setRotation(prev => ((prev + angle) % 360 + 360) % 360);
     toast.success('旋转成功');
-  }, [previewImage, updatePreview]);
+  }, [previewImage, updatePreview, getOriginalFormat]);
 
   const handleFlip = useCallback(async () => {
     if (!previewImage) return;
@@ -193,9 +227,15 @@ export default function HomePage() {
     ctx.scale(-1, 1);
     ctx.drawImage(img, 0, 0);
 
-    updatePreview(canvas.toDataURL(), canvas.width, canvas.height);
+    // 保持原始图片格式，避免强制转换为 PNG
+    const origFmt = getOriginalFormat() ?? 'jpeg';
+    const mimeType = origFmt === 'png' ? 'image/png' : origFmt === 'webp' ? 'image/webp' : 'image/jpeg';
+    const quality = mimeType === 'image/jpeg' ? 0.95 : undefined;
+    const dataUrl = quality !== undefined ? canvas.toDataURL(mimeType, quality) : canvas.toDataURL(mimeType);
+    updatePreview(dataUrl, canvas.width, canvas.height);
+    setIsFlipped(prev => !prev);
     toast.success('镜像成功');
-  }, [previewImage, updatePreview]);
+  }, [previewImage, updatePreview, getOriginalFormat]);
 
   const handleToggleHideOriginal = useCallback(() => {
     setHideOriginal(prev => !prev);
@@ -296,6 +336,8 @@ export default function HomePage() {
                   imageSize={currentOriginal.size}
                   onApply={handleApply}
                   resetSignal={resetSignal}
+                  isFlipped={isFlipped}
+                  rotation={rotation}
                 />
               )}
               {activeTab === 'watermark' && currentOriginal && (
@@ -449,6 +491,9 @@ export default function HomePage() {
                           <span className="text-sm font-medium">预览名称：</span>
                           <span className="text-sm truncate max-w-50">
                             {getFileNameWithoutExtension(previewImage.name)}
+                          </span>
+                          <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                            {getFormatExtension(previewImage.url, previewImage.name)}
                           </span>
                           <button
                             onClick={handleStartEditFileName}
