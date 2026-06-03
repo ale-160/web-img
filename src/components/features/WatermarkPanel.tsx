@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { loadImage, createCanvas, addTextWatermark, addImageWatermark, embedInvisibleWatermark, canvasToDataUrl } from '@/utils/canvas';
 import { watermarkPresets } from '@/data/presets';
@@ -28,14 +28,14 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const originalImageRef = useRef<{ url: string; width: number; height: number } | null>(null);
-  
+
   useEffect(() => {
     originalImageRef.current = { url: imageUrl, width: imageWidth, height: imageHeight };
   }, [imageUrl, imageWidth, imageHeight]);
 
   const handleApply = useCallback(async () => {
     if (!originalImageRef.current) return;
-    
+
     if (mode === 'invisible' && !invisibleText) {
       toast.error(t('enterWatermarkText'));
       return;
@@ -120,6 +120,28 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
       setTimeout(handleApply, 150);
     }
   }, [mode, watermarkText, watermarkImageUrl, handleApply]);
+
+  const patternModes = ['tile', 'single', 'diagonal'] as const;
+
+  const renderPatternSelector = () => (
+    <div>
+      <label className="block text-sm font-medium mb-2">{t('pattern')}</label>
+      <div className="flex gap-1">
+        {patternModes.map((p) => (
+          <button
+            key={p}
+            onClick={() => handlePatternClick(p)}
+            className={cn(
+              'flex-1 py-1.5 rounded text-xs transition-colors',
+              pattern === p ? 'bg-primary text-primary-foreground' : 'bg-muted'
+            )}
+          >
+            {t(`pattern${p.charAt(0).toUpperCase() + p.slice(1) as 'Tile' | 'Single' | 'Diagonal'}`)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -207,23 +229,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">{t('pattern')}</label>
-            <div className="flex gap-1">
-              {(['tile', 'single', 'diagonal'] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => handlePatternClick(p)}
-                  className={cn(
-                    'flex-1 py-1.5 rounded text-xs transition-colors',
-                    pattern === p ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                  )}
-                >
-                  {t(`pattern${p.charAt(0).toUpperCase() + p.slice(1) as 'Tile' | 'Single' | 'Diagonal'}`)}
-                </button>
-              ))}
-            </div>
-          </div>
+          {renderPatternSelector()}
         </>
       )}
 
@@ -263,23 +269,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">{t('pattern')}</label>
-            <div className="flex gap-1">
-              {(['tile', 'single', 'diagonal'] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => handlePatternClick(p)}
-                  className={cn(
-                    'flex-1 py-1.5 rounded text-xs transition-colors',
-                    pattern === p ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                  )}
-                >
-                  {t(`pattern${p.charAt(0).toUpperCase() + p.slice(1) as 'Tile' | 'Single' | 'Diagonal'}`)}
-                </button>
-              ))}
-            </div>
-          </div>
+          {renderPatternSelector()}
         </>
       )}
 
