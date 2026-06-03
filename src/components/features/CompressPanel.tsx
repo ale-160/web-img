@@ -227,8 +227,8 @@ export function AdjustPanel({
       });
       const effectFile = new File([effectBlob!], 'effect.png', { type: 'image/png' });
 
-      // 应用压缩
-      const imageFormat = formatRef.current as ImageFormat;
+      // 应用压缩（所有格式均为 Canvas 原生支持：jpeg/png/webp）
+      const imageFormat: ImageFormat = (formatRef.current as ImageFormat) ?? 'jpeg';
       const compressed = await compressImage(
         effectFile,
         qualityRef.current,

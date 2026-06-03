@@ -1,4 +1,10 @@
-export type ImageFormat = 'jpeg' | 'png' | 'webp' | 'bmp' | 'tiff' | 'ico';
+/**
+ * 浏览器 Canvas 原生可靠输出格式（跨主流浏览器均支持）
+ * - jpeg：有损压缩，适合照片
+ * - png：无损，支持透明
+ * - webp：有损/无损双模式，体积优于 jpeg
+ */
+export type ImageFormat = 'jpeg' | 'png' | 'webp';
 export type ResizeMode = 'stretch' | 'crop';
 
 export function loadImage(file: File | Blob): Promise<HTMLImageElement> {

@@ -179,6 +179,14 @@ export default function HomePage() {
     }
   }, [previewImage]);
 
+  /** 根据原始格式将 canvas 导出为 dataURL（格式保持工具函数） */
+  const canvasToOriginalDataUrl = useCallback((canvas: HTMLCanvasElement): string => {
+    const origFmt = getOriginalFormat() ?? 'jpeg';
+    const mimeType = origFmt === 'png' ? 'image/png' : origFmt === 'webp' ? 'image/webp' : 'image/jpeg';
+    const quality = mimeType === 'image/jpeg' ? 0.95 : undefined;
+    return quality !== undefined ? canvas.toDataURL(mimeType, quality) : canvas.toDataURL(mimeType);
+  }, [getOriginalFormat]);
+
   const handleRotate = useCallback(async (angle: number) => {
     if (!previewImage) return;
     const canvas = document.createElement('canvas');
@@ -190,8 +198,9 @@ export default function HomePage() {
     await new Promise(resolve => img.onload = resolve);
 
     if (angle === 90 || angle === 270) {
-      canvas.width = img.height;
-      canvas.height = img.width;
+      const [w, h] = [img.height, img.width];
+      canvas.width = w;
+      canvas.height = h;
     } else {
       canvas.width = img.width;
       canvas.height = img.height;
@@ -201,15 +210,10 @@ export default function HomePage() {
     ctx.rotate((angle * Math.PI) / 180);
     ctx.drawImage(img, -img.width / 2, -img.height / 2);
 
-    // 保持原始图片格式
-    const origFmt = getOriginalFormat() ?? 'jpeg';
-    const mimeType = origFmt === 'png' ? 'image/png' : origFmt === 'webp' ? 'image/webp' : 'image/jpeg';
-    const quality = mimeType === 'image/jpeg' ? 0.95 : undefined;
-    const dataUrl = quality !== undefined ? canvas.toDataURL(mimeType, quality) : canvas.toDataURL(mimeType);
-    updatePreview(dataUrl, canvas.width, canvas.height);
+    updatePreview(canvasToOriginalDataUrl(canvas), canvas.width, canvas.height);
     setRotation(prev => ((prev + angle) % 360 + 360) % 360);
     toast.success('旋转成功');
-  }, [previewImage, updatePreview, getOriginalFormat]);
+  }, [previewImage, updatePreview, canvasToOriginalDataUrl]);
 
   const handleFlip = useCallback(async () => {
     if (!previewImage) return;
@@ -227,15 +231,10 @@ export default function HomePage() {
     ctx.scale(-1, 1);
     ctx.drawImage(img, 0, 0);
 
-    // 保持原始图片格式，避免强制转换为 PNG
-    const origFmt = getOriginalFormat() ?? 'jpeg';
-    const mimeType = origFmt === 'png' ? 'image/png' : origFmt === 'webp' ? 'image/webp' : 'image/jpeg';
-    const quality = mimeType === 'image/jpeg' ? 0.95 : undefined;
-    const dataUrl = quality !== undefined ? canvas.toDataURL(mimeType, quality) : canvas.toDataURL(mimeType);
-    updatePreview(dataUrl, canvas.width, canvas.height);
+    updatePreview(canvasToOriginalDataUrl(canvas), canvas.width, canvas.height);
     setIsFlipped(prev => !prev);
     toast.success('镜像成功');
-  }, [previewImage, updatePreview, getOriginalFormat]);
+  }, [previewImage, updatePreview, canvasToOriginalDataUrl]);
 
   const handleToggleHideOriginal = useCallback(() => {
     setHideOriginal(prev => !prev);
