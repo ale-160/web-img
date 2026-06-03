@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Moon, Sun, Download, Trash2, Globe, Shield, Edit2, Check, X, RotateCcw, Maximize, Minimize, Eye, EyeOff, RotateCw, FlipHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
-import { useLanguage } from '@/hooks/useLanguage';
+import { useLanguage, zhStrings, enStrings } from '@/hooks/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
 import { useImageEditor } from '@/hooks/useImageEditor';
 import { UploadZone } from '@/components/ui/UploadZone';
 import { ToolPanel } from '@/components/ui/ToolPanel';
 import { SmallSidebar } from '@/components/ui/SmallSidebar';
+import { UnderDevelopmentModal } from '@/components/ui/UnderDevelopmentModal';
 import { AdjustPanel } from '@/components/features/CompressPanel';
 import { WatermarkPanel } from '@/components/features/WatermarkPanel';
 import { MergePanel } from '@/components/features/MergePanel';
@@ -17,7 +18,7 @@ import type { ToolTab } from '@/data/presets';
 import { cn } from '@/lib/utils';
 
 export default function HomePage() {
-  const { t, toggleLanguage, isMounted: langMounted } = useLanguage();
+  const { language, t, toggleLanguage, isMounted: langMounted } = useLanguage();
   const { theme, toggleTheme, isMounted: themeMounted } = useTheme();
   const {
     originalImages,
@@ -40,6 +41,10 @@ export default function HomePage() {
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [rotation, setRotation] = useState(0);
+
+  // 功能开发中弹窗
+  const [devModalOpen, setDevModalOpen] = useState(false);
+  const [devFeatureName, setDevFeatureName] = useState('');
 
   const isMounted = langMounted && themeMounted;
 
@@ -117,9 +122,8 @@ export default function HomePage() {
     return lastDotIndex > 0 ? filename.substring(0, lastDotIndex) : filename;
   };
 
-  /** 从 dataURL 或文件名中提取格式扩展名（如 .jpg）*/
+  /** 从 dataURL 或文件名中提取格式扩展名（如 .jpg） */
   const getFormatExtension = (url: string, filename: string): string => {
-    // 优先从 dataURL MIME 类型判断
     if (url.startsWith('data:')) {
       const mime = url.split(';')[0].split(':')[1];
       const mimeMap: Record<string, string> = {
@@ -132,7 +136,6 @@ export default function HomePage() {
       };
       return mimeMap[mime] ?? '.jpg';
     }
-    // 从文件名后缀推断
     const lastDot = filename.lastIndexOf('.');
     return lastDot > 0 ? filename.substring(lastDot).toLowerCase() : '';
   };
@@ -154,9 +157,13 @@ export default function HomePage() {
   }, [updatePreview]);
 
   const handleToggleLanguage = useCallback(() => {
+    // toggleLanguage 在下一帧生效，当前帧 t() 读到的是旧语言
+    // 所以用目标语言（即当前语言的相反值）读取翻译
+    const targetLang = language === 'zh' ? 'en' : 'zh';
+    const msg = targetLang === 'zh' ? zhStrings.languageSwitched : enStrings.languageSwitched;
     toggleLanguage();
-    toast.success('Language switched');
-  }, [toggleLanguage]);
+    toast.success(msg);
+  }, [toggleLanguage, language]);
 
   const handleStartEditFileName = useCallback(() => {
     if (previewImage) {
@@ -179,7 +186,7 @@ export default function HomePage() {
     }
   }, [previewImage]);
 
-  /** 根据原始格式将 canvas 导出为 dataURL（格式保持工具函数） */
+  /** 根据原始格式将 canvas 导出为 dataURL */
   const canvasToOriginalDataUrl = useCallback((canvas: HTMLCanvasElement): string => {
     const origFmt = getOriginalFormat() ?? 'jpeg';
     const mimeType = origFmt === 'png' ? 'image/png' : origFmt === 'webp' ? 'image/webp' : 'image/jpeg';
@@ -212,8 +219,8 @@ export default function HomePage() {
 
     updatePreview(canvasToOriginalDataUrl(canvas), canvas.width, canvas.height);
     setRotation(prev => ((prev + angle) % 360 + 360) % 360);
-    toast.success('旋转成功');
-  }, [previewImage, updatePreview, canvasToOriginalDataUrl]);
+    toast.success(t('rotateSuccess'));
+  }, [previewImage, updatePreview, canvasToOriginalDataUrl, t]);
 
   const handleFlip = useCallback(async () => {
     if (!previewImage) return;
@@ -233,8 +240,8 @@ export default function HomePage() {
 
     updatePreview(canvasToOriginalDataUrl(canvas), canvas.width, canvas.height);
     setIsFlipped(prev => !prev);
-    toast.success('镜像成功');
-  }, [previewImage, updatePreview, canvasToOriginalDataUrl]);
+    toast.success(t('flipSuccess'));
+  }, [previewImage, updatePreview, canvasToOriginalDataUrl, t]);
 
   const handleToggleHideOriginal = useCallback(() => {
     setHideOriginal(prev => !prev);
@@ -244,9 +251,26 @@ export default function HomePage() {
     setShowFullscreenImage(prev => !prev);
   }, []);
 
-  const handleTabChange = useCallback((tab: ToolTab | null) => {
-    setActiveTab(tab);
+  // 点击弹窗中的"试用 Beta"后，直接进入功能面板
+  const pendingDevTab = useRef<ToolTab | null>(null);
+
+  const handleBypassDev = useCallback(() => {
+    setDevModalOpen(false);
+    if (pendingDevTab.current) {
+      setActiveTab(pendingDevTab.current);
+      pendingDevTab.current = null;
+    }
   }, []);
+
+  const handleTabChange = useCallback((tab: ToolTab | null) => {
+    if (tab === 'watermark' || tab === 'merge') {
+      setDevFeatureName(tab === 'watermark' ? t('watermark') : t('merge'));
+      pendingDevTab.current = tab;
+      setDevModalOpen(true);
+      return;
+    }
+    setActiveTab(tab);
+  }, [t]);
 
   if (!isMounted) {
     return (
@@ -259,12 +283,22 @@ export default function HomePage() {
   const currentOriginal = originalImages[0];
   const hasImages = !!previewImage;
 
+  // 面板标题
+  const panelTitle = activeTab === 'adjust'
+    ? t('imageAdjust')
+    : activeTab === 'watermark'
+      ? t('watermarkProcess')
+      : activeTab === 'merge'
+        ? t('imageMerge')
+        : t('toolPanel');
+
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
       {/* 顶部导航栏 */}
       <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-card shrink-0 z-10">
         <div className="flex items-center gap-3">
           <a href="https://ale160.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <img src="https://ale160.com/images/logo-icon.ico" alt="Logo" className="w-8 h-8 rounded" />
             <span className="text-lg font-bold text-primary tracking-tight">{t('appName')}</span>
           </a>
         </div>
@@ -288,16 +322,15 @@ export default function HomePage() {
 
       {/* 主内容区：双侧边栏 + 内容 */}
       <div className="flex flex-1 min-h-0">
-        {/* 小型图标侧边栏 - WebStorm 风格 */}
+        {/* 小型图标侧边栏 */}
         <SmallSidebar activeTab={activeTab} onTabChange={handleTabChange} />
 
-        {/* 工具面板侧边栏 - 可展开/收起 */}
+        {/* 工具面板侧边栏 */}
         {sidebarOpen && (
           <aside className="w-56 shrink-0 border-r border-border bg-card flex flex-col transition-all duration-200 ease-out">
-            {/* 面板头部 */}
             <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 shrink-0">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {activeTab === 'adjust' ? '图片调整' : activeTab === 'watermark' ? '水印处理' : activeTab === 'merge' ? '图片合并' : '工具面板'}
+                {panelTitle}
               </span>
               <div className="flex items-center gap-0.5">
                 <button
@@ -308,7 +341,7 @@ export default function HomePage() {
                       ? 'text-primary hover:bg-primary/10'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   )}
-                  title={sidebarPinned ? '取消固定' : '固定面板'}
+                  title={sidebarPinned ? t('unpinPanel') : t('pinPanel')}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="17" x2="12" y2="22" />
@@ -318,14 +351,13 @@ export default function HomePage() {
                 <button
                   onClick={() => { setActiveTab(null); setSidebarPinned(false); }}
                   className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  title="关闭面板"
+                  title={t('closePanel')}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
 
-            {/* 面板内容 */}
             <ToolPanel>
               {activeTab === 'adjust' && currentOriginal && (
                 <AdjustPanel
@@ -384,13 +416,13 @@ export default function HomePage() {
                       <div className="pt-4 flex items-center justify-center">
                         <div className="space-y-2 text-left">
                           <div className="text-sm font-medium">
-                            原图名称：{currentOriginal.name}
+                            {t('originalName')}：{currentOriginal.name}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            原图大小：{formatFileSize(currentOriginal.size)}
+                            {t('originalSize')}：{formatFileSize(currentOriginal.size)}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            原图尺寸：{currentOriginal.width} × {currentOriginal.height}
+                            {t('originalDimensions')}：{currentOriginal.width} × {currentOriginal.height}
                           </div>
                           <div className="mt-3">
                             <button
@@ -416,7 +448,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* 中间分隔线 */}
               <div className="w-px bg-border self-stretch" />
             </>
           )}
@@ -430,7 +461,7 @@ export default function HomePage() {
                   onClick={handleToggleHideOriginal}
                   disabled={!hasImages}
                   className="p-1.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground"
-                  title={hideOriginal ? '显示原图' : '隐藏原图'}
+                  title={hideOriginal ? t('showOriginal') : t('hideOriginal')}
                 >
                   {hideOriginal ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                 </button>
@@ -438,7 +469,7 @@ export default function HomePage() {
                   onClick={handleToggleFullscreen}
                   disabled={!hasImages}
                   className="p-1.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground"
-                  title="全屏预览"
+                  title={t('fullscreenPreview')}
                 >
                   {showFullscreenImage ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                 </button>
@@ -458,7 +489,7 @@ export default function HomePage() {
                     <div className="space-y-2 text-left">
                       {isEditingFileName ? (
                         <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium">预览名称：</span>
+                          <span className="text-sm font-medium">{t('previewName')}：</span>
                           <input
                             type="text"
                             value={editedFileName}
@@ -473,21 +504,21 @@ export default function HomePage() {
                           <button
                             onClick={handleSaveFileName}
                             className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                            title="保存"
+                            title={t('save')}
                           >
                             <Check className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={handleCancelEditFileName}
                             className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                            title="取消"
+                            title={t('cancel')}
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium">预览名称：</span>
+                          <span className="text-sm font-medium">{t('previewName')}：</span>
                           <span className="text-sm truncate max-w-50">
                             {getFileNameWithoutExtension(previewImage.name)}
                           </span>
@@ -497,36 +528,36 @@ export default function HomePage() {
                           <button
                             onClick={handleStartEditFileName}
                             className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                            title="编辑文件名"
+                            title={t('editFileName')}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       )}
                       <div className="text-sm text-muted-foreground">
-                        预览大小：{formatFileSize(getDataUrlSize(previewImage.url))}
+                        {t('previewSize')}：{formatFileSize(getDataUrlSize(previewImage.url))}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        预览尺寸：{previewImage.width} × {previewImage.height}
+                        {t('previewDimensions')}：{previewImage.width} × {previewImage.height}
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2 justify-center">
                         <button
                           onClick={() => handleRotate(90)}
                           disabled={!hasImages}
                           className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
-                          title="旋转"
+                          title={t('rotate')}
                         >
                           <RotateCw className="w-4 h-4" />
-                          <span>旋转</span>
+                          <span>{t('rotate')}</span>
                         </button>
                         <button
                           onClick={handleFlip}
                           disabled={!hasImages}
                           className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
-                          title="镜像"
+                          title={t('flipH')}
                         >
                           <FlipHorizontal className="w-4 h-4" />
-                          <span>镜像</span>
+                          <span>{t('flip')}</span>
                         </button>
                         <button
                           onClick={handleReset}
@@ -560,31 +591,44 @@ export default function HomePage() {
         </main>
       </div>
 
-      <footer className="flex items-center justify-center gap-2 px-4 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground shrink-0">
-        <Shield className="w-3 h-3" />
-        <span>{t('privacyNote')}</span>
+      <footer className="flex items-center px-4 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground shrink-0">
+        <div className="flex-1" />
+        <div className="flex items-center gap-2">
+          <Shield className="w-3 h-3" />
+          <span>{t('privacyNote')}</span>
+        </div>
+        <div className="flex-1 flex justify-end">
+          <a
+            href="https://ale160.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground hover:text-primary transition-colors"
+          >
+            {t('ale160Link')}
+          </a>
+        </div>
       </footer>
 
       {/* 确认弹窗 */}
       {showConfirmDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
           <div className="bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-xl">
-            <h3 className="text-lg font-bold mb-2">确认替换</h3>
+            <h3 className="text-lg font-bold mb-2">{t('confirmReplace')}</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              是否清空工作区内容？当前已有的操作将不会保存。
+              {t('confirmReplaceDesc')}
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={handleCancelUpload}
                 className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm transition-colors"
               >
-                取消
+                {t('cancel')}
               </button>
               <button
                 onClick={handleConfirmUpload}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm transition-colors shadow-sm"
               >
-                确认替换
+                {t('confirmReplace')}
               </button>
             </div>
           </div>
@@ -605,12 +649,20 @@ export default function HomePage() {
           <button
             onClick={() => setShowFullscreenImage(false)}
             className="absolute top-4 right-4 p-2 bg-black/40 text-white rounded-full hover:bg-black/60 transition-colors"
-            title="关闭"
+            title={t('close')}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
       )}
+
+      {/* 功能开发中弹窗 */}
+      <UnderDevelopmentModal
+        isOpen={devModalOpen}
+        onClose={() => setDevModalOpen(false)}
+        onUseAnyway={handleBypassDev}
+        featureName={devFeatureName}
+      />
     </div>
   );
 }

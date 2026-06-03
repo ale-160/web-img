@@ -24,12 +24,16 @@ interface PresetManagerModalProps {
 }
 
 export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }: PresetManagerModalProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editWidth, setEditWidth] = useState<string>('');
   const [editHeight, setEditHeight] = useState<string>('');
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // 非"固定"分组默认折叠
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    const ids = PRESET_GROUPS.filter(g => g.id !== 'pinned').map(g => g.id);
+    return new Set(ids);
+  });
   const [addingToGroupId, setAddingToGroupId] = useState<string | null>(null);
 
   // ── 可管理的分组列表（支持删除/重命名） ──
@@ -43,6 +47,9 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
 
   // ── 删除分组确认 ──
   const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
+
+  // ── 固定分组确认 ──
+  const [pinningGroupId, setPinningGroupId] = useState<string | null>(null);
 
   // ── 新增分组 ──
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
@@ -168,7 +175,7 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
     };
     onPresetsChange([...presets, newPreset]);
     setEditingId(newId);
-    setEditName(`新预设${nextNum}`);
+    setEditName(language === 'zh' ? `新预设${nextNum}` : `New Preset ${nextNum}`);
     setEditWidth('1080');
     setEditHeight('1080');
     setAddingToGroupId(null);
@@ -279,6 +286,26 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
     });
   }, []);
 
+  // ── 确认固定分组 ──
+  const confirmPinGroup = useCallback((groupId: string) => {
+    setPinningGroupId(groupId);
+  }, []);
+
+  const executePinGroup = useCallback(() => {
+    if (!pinningGroupId) return;
+    // 将该分组内所有预设设为 fixed=true，其余全部取消固定
+    onPresetsChange(presets.map(p =>
+      p.group === pinningGroupId
+        ? { ...p, fixed: true }
+        : { ...p, fixed: false }
+    ));
+    setPinningGroupId(null);
+  }, [pinningGroupId, presets, onPresetsChange]);
+
+  const cancelPinGroup = useCallback(() => {
+    setPinningGroupId(null);
+  }, []);
+
   // ── 新增分组并立即向其中添加预设 ──
   const handleCreateGroupAndAdd = useCallback(() => {
     if (!newGroupName.trim()) return;
@@ -322,10 +349,10 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
 
     if (editingId === preset.id) {
       return (
-        <div key={preset.id} className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-10 shrink-0">
+        <div key={preset.id} className="flex items-start gap-1.5 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+          <div className="flex-1 space-y-1.5 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground w-7 shrink-0">
                 {language === 'zh' ? '名称' : 'Name'}
               </span>
               <input
@@ -334,41 +361,41 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                 onChange={e => setEditName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(preset.id); if (e.key === 'Escape') handleCancelEdit(); }}
                 placeholder={language === 'zh' ? '预设名称' : 'Preset Name'}
-                className="flex-1 px-2 py-1 border border-border rounded text-sm bg-background"
+                className="flex-1 min-w-0 px-2 py-1 border border-border rounded text-sm bg-background"
                 autoFocus
               />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-10 shrink-0">W</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground w-7 shrink-0">W</span>
               <input
                 type="number"
                 value={editWidth}
                 onChange={e => setEditWidth(e.target.value)}
                 placeholder="1920"
-                className="flex-1 px-2 py-1 border border-border rounded text-sm bg-background"
+                className="w-16 px-1.5 py-1 border border-border rounded text-sm bg-background text-center"
               />
-              <span className="text-xs text-muted-foreground">×</span>
+              <span className="text-xs text-muted-foreground shrink-0">×</span>
               <input
                 type="number"
                 value={editHeight}
                 onChange={e => setEditHeight(e.target.value)}
                 placeholder="1080"
-                className="flex-1 px-2 py-1 border border-border rounded text-sm bg-background"
+                className="w-16 px-1.5 py-1 border border-border rounded text-sm bg-background text-center"
               />
-              <span className="text-xs text-muted-foreground">px</span>
+              <span className="text-xs text-muted-foreground shrink-0">px</span>
             </div>
           </div>
-          <div className="flex flex-col gap-1 mt-1">
+          <div className="flex flex-col gap-1">
             <button
               onClick={() => handleSaveEdit(preset.id)}
-              className="p-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90"
+              className="p-1 rounded bg-primary text-primary-foreground hover:bg-primary/90"
               title={language === 'zh' ? '保存' : 'Save'}
             >
               <Check className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleCancelEdit}
-              className="p-1.5 rounded bg-muted hover:bg-muted/70"
+              className="p-1 rounded bg-muted hover:bg-muted/70"
               title={language === 'zh' ? '取消' : 'Cancel'}
             >
               <X className="w-3.5 h-3.5" />
@@ -469,10 +496,12 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
       canRename?: boolean;
       canMoveUp?: boolean;
       canMoveDown?: boolean;
+      canPin?: boolean;
       onAdd?: () => void;
+      onPinGroup?: () => void;
     } = {}
   ) => {
-    const { canDelete = false, canRename = false, canMoveUp = false, canMoveDown = false, onAdd } = opts;
+    const { canDelete = false, canRename = false, canMoveUp = false, canMoveDown = false, onAdd, onPinGroup, canPin = false } = opts;
     const isCollapsed = collapsedGroups.has(group.id);
     const title = getGroupTitle(group);
 
@@ -531,6 +560,15 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
               <ChevronDown className="w-3 h-3" />
             </button>
           )}
+          {canPin && onPinGroup && (
+            <button
+              onClick={e => { e.stopPropagation(); onPinGroup(); }}
+              className="p-0.5 rounded hover:bg-amber-500/20 text-muted-foreground hover:text-amber-500 transition-colors"
+              title={t('pinGroup')}
+            >
+              <Pin className="w-3 h-3" />
+            </button>
+          )}
           {canRename && renamingGroupId !== group.id && (
             <button
               onClick={e => { e.stopPropagation(); startRenameGroup(group.id, title); }}
@@ -565,7 +603,7 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg max-h-[88vh] overflow-hidden flex flex-col">
+      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-xl max-h-[88vh] overflow-hidden flex flex-col">
         {/* 标题栏 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <h3 className="font-semibold text-sm">
@@ -627,7 +665,16 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                   canRename: canManage,
                   canMoveUp: canManage && gi > 0,
                   canMoveDown: canManage && gi < nonPinnedGroups.length - 1,
-                  onAdd: () => handleAddToGroup(group.id),
+                  canPin: canManage && items.length > 0,
+                  onAdd: () => {
+                    setCollapsedGroups(prev => {
+                      const next = new Set(prev);
+                      next.delete(group.id);
+                      return next;
+                    });
+                    handleAddToGroup(group.id);
+                  },
+                  onPinGroup: () => confirmPinGroup(group.id),
                 })}
                 {!collapsedGroups.has(group.id) && (
                   <div className="ml-5 space-y-0.5">
@@ -771,6 +818,52 @@ export function PresetManagerModal({ isOpen, onClose, presets, onPresetsChange }
                   className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm transition-colors"
                 >
                   {language === 'zh' ? '确认删除' : 'Confirm Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── 固定分组确认弹窗 ── */}
+      {pinningGroupId !== null && (() => {
+        const g = managedGroups.find(x => x.id === pinningGroupId);
+        const groupTitle = g ? getGroupTitle(g) : pinningGroupId;
+        const pinCount = presets.filter(p => p.group === pinningGroupId).length;
+        return (
+          <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center backdrop-blur-sm">
+            <div className="bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-xl">
+              <div className="flex items-start gap-3 mb-4">
+                <Pin className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-sm mb-1">
+                    {language === 'zh' ? `固定分组「${groupTitle}」` : `Pin group "${groupTitle}"`}
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    {pinCount > 0
+                      ? (language === 'zh'
+                          ? `该分组下 ${pinCount} 个预设将全部固定，当前「固定」分组中的内容将被替换。`
+                          : `${pinCount} preset(s) will be pinned, replacing current pinned presets.`)
+                      : (language === 'zh'
+                          ? '该分组下没有预设，固定后「固定」分组将清空。'
+                          : 'No presets in this group. Pinning will clear the Pinned section.')
+                    }
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1.5">{t('pinGroupDesc')}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={cancelPinGroup}
+                  className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm transition-colors"
+                >
+                  {language === 'zh' ? '取消' : 'Cancel'}
+                </button>
+                <button
+                  onClick={executePinGroup}
+                  className="px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-sm transition-colors"
+                >
+                  {language === 'zh' ? '确认固定' : 'Confirm Pin'}
                 </button>
               </div>
             </div>

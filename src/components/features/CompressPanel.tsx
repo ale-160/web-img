@@ -52,7 +52,7 @@ export function AdjustPanel({
   isFlipped = false,
   rotation = 0,
 }: AdjustPanelProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   // 压缩相关
   const [quality, setQuality] = useState(DEFAULT_VALUES.quality);
@@ -248,9 +248,9 @@ export function AdjustPanel({
 
       const finalImg = await loadImage(compressed);
       onApply(dataUrl, finalImg.width, finalImg.height);
-      toast.success('处理完成');
+      toast.success(t('processSuccess'));
     } catch (_error) {
-      toast.error('处理失败');
+      toast.error(t('processFailed'));
     }
   }, [onApply, applyEffects]);
 
@@ -320,11 +320,11 @@ export function AdjustPanel({
       {/* 目标格式 */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium">{language === 'zh' ? '目标格式' : 'Target Format'}</label>
+          <label className="text-sm font-medium">{t('targetFormat')}</label>
           <button
             onClick={() => setShowFormatManager(true)}
             className="p-1 rounded hover:bg-muted"
-            title={language === 'zh' ? '管理格式' : 'Manage Formats'}
+            title={t('manageFormats')}
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -351,11 +351,11 @@ export function AdjustPanel({
       {/* 预设尺寸 */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium">{language === 'zh' ? '预设尺寸' : 'Preset Size'}</label>
+          <label className="text-sm font-medium">{t('presetSize')}</label>
           <button
             onClick={() => setShowPresetManager(true)}
             className="p-1 rounded hover:bg-muted"
-            title={language === 'zh' ? '管理预设' : 'Manage Presets'}
+            title={t('managePresets')}
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -393,7 +393,7 @@ export function AdjustPanel({
             )}
           >
             <Plus className="w-4 h-4" />
-            {language === 'zh' ? '自定义' : 'Custom'}
+            {t('custom')}
           </button>
         </div>
 
@@ -403,7 +403,7 @@ export function AdjustPanel({
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground w-12 shrink-0">
-                  {language === 'zh' ? '宽度' : 'Width'}
+                  {t('width')}
                 </span>
                 <input
                   type="number"
@@ -415,7 +415,7 @@ export function AdjustPanel({
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground w-12 shrink-0">
-                  {language === 'zh' ? '高度' : 'Height'}
+                  {t('height')}
                 </span>
                 <input
                   type="number"
@@ -430,14 +430,14 @@ export function AdjustPanel({
               onClick={handleCustomApply}
               className="w-full px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
             >
-              {language === 'zh' ? '应用自定义尺寸' : 'Apply Custom Size'}
+              {t('applyCustomSize')}
             </button>
           </div>
         )}
 
         {/* 调整方式 */}
         <div className="flex items-center justify-between mb-2 mt-4">
-          <label className="text-sm font-medium">{language === 'zh' ? '调整方式' : 'Resize Mode'}</label>
+          <label className="text-sm font-medium">{t('resizeMode')}</label>
         </div>
         <div className="flex gap-2">
           <button
@@ -449,7 +449,7 @@ export function AdjustPanel({
                 : 'bg-muted hover:bg-muted/80'
             )}
           >
-            {language === 'zh' ? '拉伸' : 'Stretch'}
+            {t('stretchMode')}
           </button>
           <button
             onClick={() => handleResizeModeClick('crop')}
@@ -461,7 +461,7 @@ export function AdjustPanel({
             )}
           >
             <CropIcon className="w-4 h-4" />
-            {language === 'zh' ? '裁剪' : 'Crop'}
+            {t('cropMode')}
           </button>
         </div>
       </div>
@@ -469,7 +469,7 @@ export function AdjustPanel({
       {/* 压缩质量 */}
       <div>
         <SliderWithInput
-          label={language === 'zh' ? '压缩质量' : 'Quality'}
+          label={t('compressQuality')}
           value={quality}
           onChange={setQuality}
           onChangeEnd={handleQualityChangeEnd}
@@ -484,11 +484,11 @@ export function AdjustPanel({
 
       {/* 图像效果 */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">{language === 'zh' ? '图像效果' : 'Image Effects'}</h3>
+        <h3 className="text-sm font-medium">{t('imageEffects')}</h3>
 
         {/* 亮度 */}
         <SliderWithInput
-          label={language === 'zh' ? '亮度' : 'Brightness'}
+          label={t('brightness')}
           value={brightness}
           onChange={setBrightness}
           onChangeEnd={handleSliderChangeEnd}
@@ -499,7 +499,7 @@ export function AdjustPanel({
 
         {/* 对比度 */}
         <SliderWithInput
-          label={language === 'zh' ? '对比度' : 'Contrast'}
+          label={t('contrast')}
           value={contrast}
           onChange={setContrast}
           onChangeEnd={handleSliderChangeEnd}
@@ -510,7 +510,7 @@ export function AdjustPanel({
 
         {/* 饱和度 */}
         <SliderWithInput
-          label={language === 'zh' ? '饱和度' : 'Saturation'}
+          label={t('saturate')}
           value={saturate}
           onChange={setSaturate}
           onChangeEnd={handleSliderChangeEnd}
@@ -521,7 +521,7 @@ export function AdjustPanel({
 
         {/* 模糊 */}
         <SliderWithInput
-          label={language === 'zh' ? '模糊' : 'Blur'}
+          label={t('blur')}
           value={blur}
           onChange={setBlur}
           onChangeEnd={handleSliderChangeEnd}
@@ -536,7 +536,7 @@ export function AdjustPanel({
 
       {/* RGB通道微调 */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">{language === 'zh' ? 'RGB 通道微调' : 'RGB Adjustments'}</h3>
+        <h3 className="text-sm font-medium">{t('rgbAdjustments')}</h3>
 
         {/* 红色通道 */}
         <SliderWithInput

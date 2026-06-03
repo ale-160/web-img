@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from 'react';
 import { Upload, ImagePlus } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface UploadZoneProps {
   onFilesSelected: (files: FileList | File[]) => void;
@@ -27,6 +28,7 @@ const isImageFile = (file: File): boolean => {
 };
 
 export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*', compact = false }: UploadZoneProps) {
+  const { t } = useLanguage();
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -72,10 +74,10 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
       if (validImageFiles.length > 0) {
         onFilesSelected(validImageFiles);
       } else if (filesToProcess.length > 0) {
-        toast.error('仅支持图片文件格式');
+        toast.error(t('imageOnly'));
       }
     }
-  }, [onFilesSelected]);
+  }, [onFilesSelected, t]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -84,11 +86,11 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
       if (validFiles.length > 0) {
         onFilesSelected(validFiles);
       } else {
-        toast.error('仅支持图片文件格式');
+        toast.error(t('imageOnly'));
       }
     }
     e.target.value = '';
-  }, [onFilesSelected]);
+  }, [onFilesSelected, t]);
 
   return (
     <div
@@ -120,10 +122,10 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
           <Upload className={compact ? 'w-8 h-8' : 'w-12 h-12'} />
         )}
         <p className={compact ? 'text-xs font-medium' : 'text-sm font-medium'}>
-          {isDragging ? '释放图片' : '拖拽图片到此处'}
+          {isDragging ? t('dropHere') : t('uploadTitle')}
         </p>
         {!compact && (
-          <p className="text-xs">或点击选择文件，支持批量上传</p>
+          <p className="text-xs">{t('uploadHint')}</p>
         )}
       </div>
     </div>

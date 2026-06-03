@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext } from 'react';
 
-type Language = 'zh' | 'en';
-
-interface Translations {
+export type Language = 'zh' | 'en';
+// ── 翻译表类型 ──
+export interface Translations {
   appName: string;
   tagline: string;
   compress: string;
@@ -65,6 +65,10 @@ interface Translations {
   help: string;
   originalSize: string;
   previewSize: string;
+  previewName: string;
+  originalName: string;
+  originalDimensions: string;
+  previewDimensions: string;
   width: string;
   height: string;
   preserveRatio: string;
@@ -83,9 +87,73 @@ interface Translations {
   extractSuccess: string;
   noDataFound: string;
   noImagesToMerge: string;
+  save: string;
+  cancel: string;
+  close: string;
+  confirm: string;
+  delete: string;
+  editFileName: string;
+  hideOriginal: string;
+  showOriginal: string;
+  fullscreenPreview: string;
+  confirmReplace: string;
+  confirmReplaceDesc: string;
+  pinPanel: string;
+  unpinPanel: string;
+  closePanel: string;
+  rotateSuccess: string;
+  flipSuccess: string;
+  languageSwitched: string;
+  processSuccess: string;
+  processFailed: string;
+  imageOnly: string;
+  watermarkFailed: string;
+  mergeFailed: string;
+  dropHere: string;
+  imageAdjust: string;
+  watermarkProcess: string;
+  imageMerge: string;
+  toolPanel: string;
+  preset: string;
+  fontSize: string;
+  invisibleHelp: string;
+  invisibleHelpText: string;
+  imagesAdded: string;
+  imageHistory: string;
+  storageUsage: string;
+  total: string;
+  history: string;
+  pinned: string;
+  noHistory: string;
+  pinnedImages: string;
+  historyImages: string;
+  unpin: string;
+  pin: string;
+  justNow: string;
+  minutesAgo: string;
+  hoursAgo: string;
+  underDevelopment: string;
+  gotIt: string;
+  tryBeta: string;
+  betaWarning: string;
+  adjust: string;
+  manageFormats: string;
+  managePresets: string;
+  presetSize: string;
+  custom: string;
+  applyCustomSize: string;
+  resizeMode: string;
+  stretchMode: string;
+  cropMode: string;
+  compressQuality: string;
+  imageEffects: string;
+  rgbAdjustments: string;
+  ale160Link: string;
+  pinGroup: string;
+  pinGroupDesc: string;
 }
 
-const zhStrings: Translations = {
+export const zhStrings: Record<keyof Translations, string> = {
   appName: 'web-img',
   tagline: '纯前端图片处理工具',
   compress: '压缩',
@@ -95,14 +163,14 @@ const zhStrings: Translations = {
   merge: '合并',
   replaceColor: '颜色',
   uploadTitle: '拖拽图片到此处',
-  uploadHint: '或点击选择文件，支持批量上传',
+  uploadHint: '或点击选择文件',
   quality: '质量',
   maxWidth: '最大宽度',
   maxHeight: '最大高度',
   targetFormat: '目标格式',
   crop: '裁剪',
   rotate: '旋转',
-  flip: 'flip',
+  flip: '翻转',
   flipH: '水平翻转',
   flipV: '垂直翻转',
   draw: '涂鸦',
@@ -146,6 +214,10 @@ const zhStrings: Translations = {
   help: '帮助',
   originalSize: '原图大小',
   previewSize: '预览大小',
+  previewName: '预览名称',
+  originalName: '原图名称',
+  originalDimensions: '原图尺寸',
+  previewDimensions: '预览尺寸',
   width: '宽度',
   height: '高度',
   preserveRatio: '保持比例',
@@ -164,9 +236,73 @@ const zhStrings: Translations = {
   extractSuccess: '信息提取成功',
   noDataFound: '未找到嵌入信息',
   noImagesToMerge: '请先添加要合并的图片',
+  save: '保存',
+  cancel: '取消',
+  close: '关闭',
+  confirm: '确认',
+  delete: '删除',
+  editFileName: '编辑文件名',
+  hideOriginal: '隐藏原图',
+  showOriginal: '显示原图',
+  fullscreenPreview: '全屏预览',
+  confirmReplace: '确认替换',
+  confirmReplaceDesc: '是否清空工作区内容？当前已有的操作将不会保存。',
+  pinPanel: '固定面板',
+  unpinPanel: '取消固定',
+  closePanel: '关闭面板',
+  rotateSuccess: '旋转成功',
+  flipSuccess: '镜像成功',
+  languageSwitched: '语言已切换',
+  processSuccess: '处理完成',
+  processFailed: '处理失败',
+  imageOnly: '仅支持图片文件格式',
+  watermarkFailed: '水印处理失败',
+  mergeFailed: '合并处理失败',
+  dropHere: '释放图片',
+  imageAdjust: '图片调整',
+  watermarkProcess: '水印处理',
+  imageMerge: '图片合并',
+  toolPanel: '工具面板',
+  preset: '预设',
+  fontSize: '字体大小',
+  invisibleHelp: '隐形水印说明',
+  invisibleHelpText: '隐形水印将信息隐藏在图片像素中，肉眼不可见，可通过提取功能还原',
+  imagesAdded: '已添加图片',
+  imageHistory: '图片历史记录',
+  storageUsage: '存储使用情况',
+  total: '总计',
+  history: '历史',
+  pinned: '固定',
+  noHistory: '暂无历史记录',
+  pinnedImages: '固定图片',
+  historyImages: '历史图片',
+  unpin: '取消固定',
+  pin: '固定',
+  justNow: '刚刚',
+  minutesAgo: '分钟前',
+  hoursAgo: '小时前',
+  underDevelopment: '功能开发中，敬请期待…',
+  gotIt: '知道了',
+  tryBeta: '试用 Beta',
+  betaWarning: '当前功能为 Beta 版本，可能存在不稳定或异常情况',
+  adjust: '调整',
+  manageFormats: '管理格式',
+  managePresets: '管理预设',
+  presetSize: '预设尺寸',
+  custom: '自定义',
+  applyCustomSize: '应用自定义尺寸',
+  resizeMode: '调整方式',
+  stretchMode: '拉伸',
+  cropMode: '裁剪',
+  compressQuality: '压缩质量',
+  imageEffects: '图像效果',
+  rgbAdjustments: 'RGB 通道微调',
+  ale160Link: '阿乐一百六',
+  pinGroup: '固定分组',
+  pinGroupDesc: '将该分组内所有预设批量固定，替换「固定」分组中现有内容。原固定预设将被移除。',
 };
 
-const enStrings: Translations = {
+export const enStrings: Record<keyof Translations, string> = {
   appName: 'web-img',
   tagline: 'Pure Frontend Image Tool',
   compress: 'Compress',
@@ -176,7 +312,7 @@ const enStrings: Translations = {
   merge: 'Merge',
   replaceColor: 'Color',
   uploadTitle: 'Drag images here',
-  uploadHint: 'Or click to select files, supports batch upload',
+  uploadHint: 'Or click to select files',
   quality: 'Quality',
   maxWidth: 'Max Width',
   maxHeight: 'Max Height',
@@ -227,6 +363,10 @@ const enStrings: Translations = {
   help: 'Help',
   originalSize: 'Original Size',
   previewSize: 'Preview Size',
+  previewName: 'Preview Name',
+  originalName: 'Original Name',
+  originalDimensions: 'Original Dimensions',
+  previewDimensions: 'Preview Dimensions',
   width: 'Width',
   height: 'Height',
   preserveRatio: 'Preserve Ratio',
@@ -245,33 +385,88 @@ const enStrings: Translations = {
   extractSuccess: 'Data extracted successfully',
   noDataFound: 'No embedded data found',
   noImagesToMerge: 'Please add images to merge first',
+  save: 'Save',
+  cancel: 'Cancel',
+  close: 'Close',
+  confirm: 'Confirm',
+  delete: 'Delete',
+  editFileName: 'Edit File Name',
+  hideOriginal: 'Hide Original',
+  showOriginal: 'Show Original',
+  fullscreenPreview: 'Fullscreen Preview',
+  confirmReplace: 'Confirm Replace',
+  confirmReplaceDesc: 'Clear the workspace? Current changes will not be saved.',
+  pinPanel: 'Pin Panel',
+  unpinPanel: 'Unpin Panel',
+  closePanel: 'Close Panel',
+  rotateSuccess: 'Rotated successfully',
+  flipSuccess: 'Flipped successfully',
+  languageSwitched: 'Language switched',
+  processSuccess: 'Processing complete',
+  processFailed: 'Processing failed',
+  imageOnly: 'Only image files are supported',
+  watermarkFailed: 'Watermark failed',
+  mergeFailed: 'Merge failed',
+  dropHere: 'Drop images here',
+  imageAdjust: 'Image Adjust',
+  watermarkProcess: 'Watermark',
+  imageMerge: 'Image Merge',
+  toolPanel: 'Tool Panel',
+  preset: 'Preset',
+  fontSize: 'Font Size',
+  invisibleHelp: 'Invisible Watermark',
+  invisibleHelpText: 'Invisible watermarks embed data into image pixels. Visually undetectable and can be extracted later.',
+  imagesAdded: 'Images Added',
+  imageHistory: 'Image History',
+  storageUsage: 'Storage Usage',
+  total: 'Total',
+  history: 'History',
+  pinned: 'Pinned',
+  noHistory: 'No history records',
+  pinnedImages: 'Pinned Images',
+  historyImages: 'History Images',
+  unpin: 'Unpin',
+  pin: 'Pin',
+  justNow: 'Just now',
+  minutesAgo: 'min ago',
+  hoursAgo: 'hr ago',
+  underDevelopment: 'This feature is under development. Stay tuned…',
+  gotIt: 'Got it',
+  tryBeta: 'Try Beta',
+  betaWarning: 'This feature is in Beta and may be unstable.',
+  adjust: 'Adjust',
+  manageFormats: 'Manage Formats',
+  managePresets: 'Manage Presets',
+  presetSize: 'Preset Size',
+  custom: 'Custom',
+  applyCustomSize: 'Apply Custom Size',
+  resizeMode: 'Resize Mode',
+  stretchMode: 'Stretch',
+  cropMode: 'Crop',
+  compressQuality: 'Quality',
+  imageEffects: 'Image Effects',
+  rgbAdjustments: 'RGB Adjustments',
+  ale160Link: 'ale160',
+  pinGroup: 'Pin Group',
+  pinGroupDesc: 'Pin all presets in this group, replacing the current pinned presets. Existing pinned presets will be removed.',
 };
 
-export function useLanguage() {
-  const [language, setLanguage] = useState<Language>('zh');
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-    const saved = localStorage.getItem('web-img-language') as Language | null;
-    if (saved) {
-      setLanguage(saved);
-    }
-  }, []);
-
-  const toggleLanguage = useCallback(() => {
-    setLanguage(prev => {
-      const next = prev === 'zh' ? 'en' : 'zh';
-      localStorage.setItem('web-img-language', next);
-      return next;
-    });
-  }, []);
-
-  const t = useMemo(() => {
-    return (key: keyof Translations): string => {
-      return language === 'zh' ? zhStrings[key] : enStrings[key];
-    };
-  }, [language]);
-
-  return { t, language, toggleLanguage, isMounted };
+// ── Context ──
+export interface LanguageContextValue {
+  language: Language;
+  t: (key: keyof Translations) => string;
+  toggleLanguage: () => void;
+  isMounted: boolean;
 }
+
+export const LanguageContext = createContext<LanguageContextValue | null>(null);
+
+export function useLanguage(): LanguageContextValue {
+  const ctx = useContext(LanguageContext);
+  if (!ctx) {
+    throw new Error('useLanguage must be used within <LanguageProvider>');
+  }
+  return ctx;
+}
+
+// LanguageProvider is exported from @/components/providers/LanguageProvider (tsx file)

@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import { ToolTab } from '@/data/presets';
 import { Sliders, Droplets, Images } from 'lucide-react';
+import { useLanguage } from '@/hooks/useLanguage';
 import React from "react";
 
 interface SmallSidebarProps {
@@ -10,13 +11,15 @@ interface SmallSidebarProps {
   onTabChange: (tab: ToolTab | null) => void;
 }
 
-const toolItems: { id: ToolTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'adjust', label: '调整', icon: <Sliders className="w-5 h-5" /> },
-  { id: 'watermark', label: '水印', icon: <Droplets className="w-5 h-5" /> },
-  { id: 'merge', label: '合并', icon: <Images className="w-5 h-5" /> },
-];
-
 export function SmallSidebar({ activeTab, onTabChange }: SmallSidebarProps) {
+  const { t } = useLanguage();
+
+  const toolItems: { id: ToolTab; key: 'adjust' | 'watermark' | 'merge'; icon: React.ReactNode }[] = [
+    { id: 'adjust', key: 'adjust', icon: <Sliders className="w-5 h-5" /> },
+    { id: 'watermark', key: 'watermark', icon: <Droplets className="w-5 h-5" /> },
+    { id: 'merge', key: 'merge', icon: <Images className="w-5 h-5" /> },
+  ];
+
   const handleClick = (tabId: ToolTab) => {
     if (activeTab === tabId) {
       onTabChange(null);
@@ -31,7 +34,7 @@ export function SmallSidebar({ activeTab, onTabChange }: SmallSidebarProps) {
         <button
           key={item.id}
           onClick={() => handleClick(item.id)}
-          title={item.label}
+          title={t(item.key)}
           className={cn(
             'relative flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200',
             'hover:bg-muted hover:text-foreground',

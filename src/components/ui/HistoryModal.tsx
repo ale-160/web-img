@@ -2,7 +2,7 @@
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { ImageHistoryEntry, getStorageInfo, formatSize } from '@/utils/storage';
-import { Pin, PinOff, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Pin, PinOff, Trash2, Image as ImageIcon, X } from 'lucide-react';
 
 interface HistoryModalProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ export const HistoryModal = ({
   onDelete,
   onTogglePin,
 }: HistoryModalProps) => {
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
 
   if (!isOpen) return null;
 
@@ -32,9 +32,9 @@ export const HistoryModal = ({
     const now = new Date();
     const diff = now.getTime() - date.getTime();
 
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+    if (diff < 60000) return t('justNow');
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} ${t('minutesAgo')}`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ${t('hoursAgo')}`;
     return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US');
   };
 
@@ -42,7 +42,6 @@ export const HistoryModal = ({
     if (version.imageSize) {
       return formatSize(version.imageSize);
     }
-    // 如果没有预存的大小，计算一下
     try {
       return formatSize(new Blob([version.imageData]).size);
     } catch {
@@ -58,34 +57,34 @@ export const HistoryModal = ({
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold flex items-center gap-2">
             <ImageIcon className="w-5 h-5" />
-            图片历史记录
+            {t('imageHistory')}
           </h3>
           <button
             onClick={onClose}
             className="p-2 rounded hover:bg-muted"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 存储使用情况 */}
         <div className="p-4 border-b border-border bg-muted/30">
-          <h4 className="text-sm font-medium mb-2">存储使用情况</h4>
+          <h4 className="text-sm font-medium mb-2">{t('storageUsage')}</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
             <div className="bg-muted p-2 rounded">
-              <span className="text-muted-foreground">总计:</span>
+              <span className="text-muted-foreground">{t('total')}:</span>
               <span className="ml-1 font-mono">{formatSize(storageInfo.totalSize)}</span>
             </div>
             <div className="bg-muted p-2 rounded">
-              <span className="text-muted-foreground">预览:</span>
+              <span className="text-muted-foreground">{t('preview')}:</span>
               <span className="ml-1 font-mono">{formatSize(storageInfo.previewSize)}</span>
             </div>
             <div className="bg-muted p-2 rounded">
-              <span className="text-muted-foreground">历史:</span>
+              <span className="text-muted-foreground">{t('history')}:</span>
               <span className="ml-1 font-mono">{formatSize(storageInfo.historySize)}</span>
             </div>
             <div className="bg-muted p-2 rounded">
-              <span className="text-muted-foreground">固定:</span>
+              <span className="text-muted-foreground">{t('pinned')}:</span>
               <span className="ml-1 font-mono">{formatSize(storageInfo.pinnedSize)}</span>
             </div>
           </div>
@@ -94,7 +93,7 @@ export const HistoryModal = ({
         <div className="overflow-y-auto max-h-[65vh]">
           {history.length === 0 && pinned.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
-              暂无历史记录
+              {t('noHistory')}
             </div>
           ) : (
             <div className="space-y-0">
@@ -102,7 +101,7 @@ export const HistoryModal = ({
               {pinned.length > 0 && (
                 <>
                   <div className="px-4 py-2 bg-muted/30 text-xs font-medium text-muted-foreground sticky top-0">
-                    固定图片 ({pinned.length})
+                    {t('pinnedImages')} ({pinned.length})
                   </div>
                   {pinned.map(version => (
                     <div
@@ -142,7 +141,7 @@ export const HistoryModal = ({
                               onTogglePin(version);
                             }}
                             className="p-1.5 rounded hover:bg-muted/70"
-                            title="取消固定"
+                            title={t('unpin')}
                           >
                             <PinOff className="w-4 h-4 text-yellow-600" />
                           </button>
@@ -152,7 +151,7 @@ export const HistoryModal = ({
                               onDelete(version.id);
                             }}
                             className="p-1.5 rounded hover:bg-muted/70"
-                            title="删除"
+                            title={t('delete')}
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </button>
@@ -167,7 +166,7 @@ export const HistoryModal = ({
               {history.length > 0 && (
                 <>
                   <div className="px-4 py-2 bg-muted/20 text-xs font-medium text-muted-foreground sticky top-0">
-                    历史图片 ({history.filter(item => !item.pinned).length})
+                    {t('historyImages')} ({history.filter(item => !item.pinned).length})
                   </div>
                   {history.filter(item => !item.pinned).map(version => (
                     <div
@@ -207,7 +206,7 @@ export const HistoryModal = ({
                               onTogglePin(version);
                             }}
                             className="p-1.5 rounded hover:bg-muted/70"
-                            title="固定"
+                            title={t('pin')}
                           >
                             <Pin className="w-4 h-4" />
                           </button>
@@ -217,7 +216,7 @@ export const HistoryModal = ({
                               onDelete(version.id);
                             }}
                             className="p-1.5 rounded hover:bg-muted/70"
-                            title="删除"
+                            title={t('delete')}
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </button>

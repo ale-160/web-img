@@ -74,7 +74,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
       onApply(dataUrl, img.width, img.height);
       toast.success(t('processing'));
     } catch (error) {
-      toast.error('Watermark failed');
+      toast.error(t('watermarkFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -175,7 +175,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">预设</label>
+            <label className="block text-sm font-medium mb-2">{t('preset')}</label>
             <div className="flex flex-wrap gap-1">
               {watermarkPresets.map((preset) => (
                 <button
@@ -204,7 +204,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">字体大小: {fontSize}px</label>
+            <label className="block text-sm font-medium mb-2">{t('fontSize')}: {fontSize}px</label>
             <input
               type="range"
               min="10"
@@ -281,7 +281,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
               value={invisibleText}
               onChange={(e) => setInvisibleText(e.target.value)}
               onBlur={() => invisibleText && handleApply()}
-              placeholder="输入要嵌入的信息..."
+              placeholder={t('enterWatermarkText')}
               className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm h-20 resize-none"
             />
             <button
@@ -293,7 +293,7 @@ export function WatermarkPanel({ imageUrl, imageWidth, imageHeight, onApply }: W
             </button>
           </div>
           <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-            💡 隐形水印将信息隐藏在图片像素中，肉眼不可见，可通过提取功能还原
+            💡 {t('invisibleHelpText')}
           </div>
         </>
       )}

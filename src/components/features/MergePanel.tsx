@@ -51,7 +51,7 @@ export function MergePanel({ imageUrl, onApply }: MergePanelProps) {
       onApply(dataUrl, width, height);
       toast.success(t('processing'));
     } catch (error) {
-      toast.error('Merge failed');
+      toast.error(t('mergeFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -144,7 +144,7 @@ export function MergePanel({ imageUrl, onApply }: MergePanelProps) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2">已添加图片 ({images.length})</label>
+        <label className="block text-sm font-medium mb-2">{t('imagesAdded')} ({images.length})</label>
         <div className="grid grid-cols-3 gap-2 max-h-30 overflow-auto">
           {images.map((url, index) => (
             <div key={index} className="relative group">
