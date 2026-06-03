@@ -9,6 +9,7 @@ interface UploadZoneProps {
   multiple?: boolean;
   accept?: string;
   hasExistingImage?: boolean;
+  compact?: boolean;
 }
 
 // 支持的图片扩展名
@@ -25,7 +26,7 @@ const isImageFile = (file: File): boolean => {
   return supportedImageExtensions.includes(ext);
 };
 
-export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*'}: UploadZoneProps) {
+export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*', compact = false }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -37,7 +38,6 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // 只有当离开的是当前元素时才取消拖拽状态
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragging(false);
     }
@@ -62,13 +62,11 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
       }
     }
 
-    // 如果没有从DataTransferItems获取到，再使用files
     if (filesToProcess.length === 0 && e.dataTransfer.files.length > 0) {
       filesToProcess = Array.from(e.dataTransfer.files);
     }
 
     if (filesToProcess.length > 0) {
-      // 过滤有效的图片文件
       const validImageFiles = filesToProcess.filter(isImageFile);
 
       if (validImageFiles.length > 0) {
@@ -95,9 +93,10 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
   return (
     <div
       className={`
-        relative flex flex-col items-center justify-center w-full h-48 
+        relative flex flex-col items-center justify-center w-full
         border-2 border-dashed rounded-lg cursor-pointer
         transition-colors duration-200
+        ${compact ? 'h-24' : 'h-48'}
         ${isDragging 
           ? 'border-primary bg-primary/10' 
           : 'border-border hover:border-primary/50 hover:bg-muted/50'
@@ -114,18 +113,18 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
         onChange={handleFileInput}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
       />
-      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+      <div className="flex flex-col items-center gap-2 text-muted-foreground">
         {isDragging ? (
-          <ImagePlus className="w-12 h-12 text-primary" />
+          <ImagePlus className={compact ? 'w-8 h-8' : 'w-12 h-12'} />
         ) : (
-          <Upload className="w-12 h-12" />
+          <Upload className={compact ? 'w-8 h-8' : 'w-12 h-12'} />
         )}
-        <p className="text-sm font-medium">
+        <p className={compact ? 'text-xs font-medium' : 'text-sm font-medium'}>
           {isDragging ? '释放图片' : '拖拽图片到此处'}
         </p>
-        <p className="text-xs">
-          或点击选择文件，支持批量上传
-        </p>
+        {!compact && (
+          <p className="text-xs">或点击选择文件，支持批量上传</p>
+        )}
       </div>
     </div>
   );

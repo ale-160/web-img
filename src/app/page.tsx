@@ -8,11 +8,13 @@ import { useTheme } from '@/hooks/useTheme';
 import { useImageEditor } from '@/hooks/useImageEditor';
 import { UploadZone } from '@/components/ui/UploadZone';
 import { ToolPanel } from '@/components/ui/ToolPanel';
+import { SmallSidebar } from '@/components/ui/SmallSidebar';
 import { AdjustPanel } from '@/components/features/CompressPanel';
 import { WatermarkPanel } from '@/components/features/WatermarkPanel';
 import { MergePanel } from '@/components/features/MergePanel';
 import { downloadFile, formatFileSize } from '@/utils/file';
-import { ToolTab } from '@/data/presets';
+import type { ToolTab } from '@/data/presets';
+import { cn } from '@/lib/utils';
 
 export default function HomePage() {
   const { t, toggleLanguage, isMounted: langMounted } = useLanguage();
@@ -34,6 +36,7 @@ export default function HomePage() {
   const [hideOriginal, setHideOriginal] = useState(false);
   const [showFullscreenImage, setShowFullscreenImage] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
 
   const isMounted = langMounted && themeMounted;
 
@@ -63,16 +66,17 @@ export default function HomePage() {
     };
   }, []);
 
+  // 侧边栏：有 tab 选中时自动展开
+  const sidebarOpen = sidebarPinned || activeTab !== null;
 
   // 添加图片后设置默认格式和添加到历史
   const handleFilesSelected = useCallback((files: FileList | File[]) => {
-    // 如果已有图片，显示确认弹窗
     if (previewImage) {
       setPendingFiles(files);
       setShowConfirmDialog(true);
     } else {
       addImages(files);
-      setActiveTab('adjust'); // 自动跳转到调整
+      setActiveTab('adjust');
     }
   }, [previewImage, addImages]);
 
@@ -80,7 +84,7 @@ export default function HomePage() {
     if (pendingFiles) {
       clearImages();
       addImages(pendingFiles);
-      setActiveTab('adjust'); // 确认后自动跳转到调整
+      setActiveTab('adjust');
     }
     setShowConfirmDialog(false);
     setPendingFiles(null);
@@ -100,20 +104,16 @@ export default function HomePage() {
     setResetSignal(prev => prev + 1);
   }, [resetPreview]);
 
-  // 获取文件名（不含扩展名）
   const getFileNameWithoutExtension = (filename: string) => {
     const lastDotIndex = filename.lastIndexOf('.');
     return lastDotIndex > 0 ? filename.substring(0, lastDotIndex) : filename;
   };
 
-  // 计算 dataURL 的大小
   const getDataUrlSize = (dataUrl: string) => {
-    // dataURL 的大小大约是字节的 1.37 倍
     const base64 = dataUrl.split(',')[1];
     return base64 ? Math.ceil(base64.length * 0.75) : 0;
   };
 
-  // 下载时使用编辑后的文件名
   const handleDownload = useCallback(() => {
     if (!previewImage) return;
     const baseName = getFileNameWithoutExtension(previewImage.name);
@@ -161,7 +161,6 @@ export default function HomePage() {
     img.src = previewImage.url;
     await new Promise(resolve => img.onload = resolve);
 
-    //旋转使用宽高对换为正常情况
     if (angle === 90 || angle === 270) {
       canvas.width = img.height;
       canvas.height = img.width;
@@ -198,14 +197,16 @@ export default function HomePage() {
     toast.success('镜像成功');
   }, [previewImage, updatePreview]);
 
-  // 切换隐藏原图
   const handleToggleHideOriginal = useCallback(() => {
     setHideOriginal(prev => !prev);
   }, []);
 
-  // 切换全屏显示预览
   const handleToggleFullscreen = useCallback(() => {
     setShowFullscreenImage(prev => !prev);
+  }, []);
+
+  const handleTabChange = useCallback((tab: ToolTab | null) => {
+    setActiveTab(tab);
   }, []);
 
   if (!isMounted) {
@@ -221,36 +222,72 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50 backdrop-blur-sm shrink-0">
+      {/* 顶部导航栏 */}
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-card shrink-0 z-10">
         <div className="flex items-center gap-3">
           <a href="https://ale160.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            {/*<img src="https://ale160.com/images/logo-icon.ico" alt="Logo" className="w-8 h-8 rounded" />*/}
-            <span className="text-xl font-bold text-primary">{t('appName')}</span>
+            <span className="text-lg font-bold text-primary tracking-tight">{t('appName')}</span>
           </a>
         </div>
-
         <div className="flex items-center gap-1">
           <button
             onClick={handleToggleLanguage}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
+            className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
             title={t('language')}
           >
-            <Globe className="w-5 h-5" />
+            <Globe className="w-4.5 h-4.5" />
           </button>
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
+            className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
             title={t('theme')}
           >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {theme === 'dark' ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
           </button>
         </div>
       </header>
 
+      {/* 主内容区：双侧边栏 + 内容 */}
       <div className="flex flex-1 min-h-0">
-        <aside className="w-48 shrink-0 border-r border-border bg-card flex flex-col">
-          <div className="flex-1 overflow-auto">
-            <ToolPanel activeTab={activeTab} onTabChange={setActiveTab}>
+        {/* 小型图标侧边栏 - WebStorm 风格 */}
+        <SmallSidebar activeTab={activeTab} onTabChange={handleTabChange} />
+
+        {/* 工具面板侧边栏 - 可展开/收起 */}
+        {sidebarOpen && (
+          <aside className="w-56 shrink-0 border-r border-border bg-card flex flex-col transition-all duration-200 ease-out">
+            {/* 面板头部 */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 shrink-0">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {activeTab === 'adjust' ? '图片调整' : activeTab === 'watermark' ? '水印处理' : activeTab === 'merge' ? '图片合并' : '工具面板'}
+              </span>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => setSidebarPinned(!sidebarPinned)}
+                  className={cn(
+                    'p-1 rounded transition-colors',
+                    sidebarPinned
+                      ? 'text-primary hover:bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                  title={sidebarPinned ? '取消固定' : '固定面板'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="17" x2="12" y2="22" />
+                    <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => { setActiveTab(null); setSidebarPinned(false); }}
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  title="关闭面板"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 面板内容 */}
+            <ToolPanel>
               {activeTab === 'adjust' && currentOriginal && (
                 <AdjustPanel
                   imageUrl={currentOriginal.url}
@@ -275,39 +312,34 @@ export default function HomePage() {
                   onApply={handleApply}
                 />
               )}
-              {activeTab && !['adjust', 'watermark', 'merge'].includes(activeTab) && !currentOriginal && (
-                <div className="text-center text-muted-foreground text-sm py-8">
-                  请先上传图片
-                </div>
-              )}
-              {!activeTab && currentOriginal && (
-                <div className="text-center text-muted-foreground text-sm py-8">
-                  请选择功能
+              {activeTab && !currentOriginal && (
+                <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground text-sm gap-2">
+                  <UploadZone onFilesSelected={handleFilesSelected} hasExistingImage={false} compact />
                 </div>
               )}
             </ToolPanel>
-          </div>
-        </aside>
+          </aside>
+        )}
 
+        {/* 主内容区 */}
         <main className="flex-1 flex min-h-0">
+          {/* 原图区域 */}
           {!hideOriginal && (
             <>
               <div className="flex-1 flex flex-col border-r border-border min-w-0">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 shrink-0">
-                  <span className="text-sm font-bold">{t('original')}</span>
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20 shrink-0">
+                  <span className="text-sm font-semibold tracking-tight">{t('original')}</span>
                 </div>
-                <div className="flex-1 overflow-auto bg-muted/10 scrollbar-thin">
+                <div className="flex-1 overflow-auto bg-muted/5 scrollbar-thin">
                   {currentOriginal ? (
                     <div className="flex flex-col h-full p-4">
-                      {/* 图片区域 - 固定高度，与预览区域一致 */}
                       <div className="h-96 flex items-center justify-center">
                         <img
                           src={currentOriginal.url}
                           alt="Original"
-                          className="max-w-full max-h-full object-contain"
+                          className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
                         />
                       </div>
-                      {/* 信息和按钮区域 - 固定在底部 */}
                       <div className="pt-4 flex items-center justify-center">
                         <div className="space-y-2 text-left">
                           <div className="text-sm font-medium">
@@ -319,12 +351,11 @@ export default function HomePage() {
                           <div className="text-sm text-muted-foreground">
                             原图尺寸：{currentOriginal.width} × {currentOriginal.height}
                           </div>
-                          {/* 清空按钮 */}
                           <div className="mt-3">
                             <button
                               onClick={handleClearAll}
                               disabled={!hasImages}
-                              className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
                               title={t('clearAll')}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -349,14 +380,15 @@ export default function HomePage() {
             </>
           )}
 
+          {/* 预览区域 */}
           <div className={`flex flex-col min-w-0 ${hideOriginal ? 'flex-2' : 'flex-1'}`}>
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 shrink-0">
-              <span className="text-sm font-bold">{t('preview')}</span>
-              <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20 shrink-0">
+              <span className="text-sm font-semibold tracking-tight">{t('preview')}</span>
+              <div className="flex items-center gap-0.5">
                 <button
                   onClick={handleToggleHideOriginal}
                   disabled={!hasImages}
-                  className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground"
                   title={hideOriginal ? '显示原图' : '隐藏原图'}
                 >
                   {hideOriginal ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -364,32 +396,28 @@ export default function HomePage() {
                 <button
                   onClick={handleToggleFullscreen}
                   disabled={!hasImages}
-                  className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground"
                   title="全屏预览"
                 >
                   {showFullscreenImage ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-auto bg-muted/10 scrollbar-thin">
+            <div className="flex-1 overflow-auto bg-muted/5 scrollbar-thin">
               {previewImage ? (
                 <div className="flex flex-col h-full p-4">
-                  {/* 图片区域 - 固定高度，隐藏原图时放大一倍 */}
                   <div className={`flex items-center justify-center ${hideOriginal ? 'h-192' : 'h-96'}`}>
                     <img
                       src={previewImage.url}
                       alt="Preview"
-                      className="max-w-full max-h-full object-contain"
+                      className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
                     />
                   </div>
-                  {/* 信息和按钮区域 - 固定在底部 */}
                   <div className="pt-4 flex items-center justify-center">
                     <div className="space-y-2 text-left">
                       {isEditingFileName ? (
                         <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium">
-                            预览名称：
-                          </span>
+                          <span className="text-sm font-medium">预览名称：</span>
                           <input
                             type="text"
                             value={editedFileName}
@@ -398,38 +426,36 @@ export default function HomePage() {
                               if (e.key === 'Enter') handleSaveFileName();
                               if (e.key === 'Escape') handleCancelEditFileName();
                             }}
-                            className="px-2 py-1 border border-border rounded text-sm bg-background w-32"
+                            className="px-2 py-1 border border-border rounded-lg text-sm bg-background w-32 focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary"
                             autoFocus
                           />
                           <button
                             onClick={handleSaveFileName}
-                            className="p-1 rounded hover:bg-muted text-muted-foreground"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                             title="保存"
                           >
-                            <Check className="w-3 h-3" />
+                            <Check className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={handleCancelEditFileName}
-                            className="p-1 rounded hover:bg-muted text-muted-foreground"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                             title="取消"
                           >
-                            <X className="w-3 h-3" />
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium">
-                            预览名称：
-                          </span>
+                          <span className="text-sm font-medium">预览名称：</span>
                           <span className="text-sm truncate max-w-50">
                             {getFileNameWithoutExtension(previewImage.name)}
                           </span>
                           <button
                             onClick={handleStartEditFileName}
-                            className="p-1 rounded hover:bg-muted text-muted-foreground"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                             title="编辑文件名"
                           >
-                            <Edit2 className="w-3 h-3" />
+                            <Edit2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       )}
@@ -439,12 +465,11 @@ export default function HomePage() {
                       <div className="text-sm text-muted-foreground">
                         预览尺寸：{previewImage.width} × {previewImage.height}
                       </div>
-                      {/* 预览功能按钮 */}
                       <div className="mt-3 flex flex-wrap gap-2 justify-center">
                         <button
                           onClick={() => handleRotate(90)}
                           disabled={!hasImages}
-                          className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                          className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
                           title="旋转"
                         >
                           <RotateCw className="w-4 h-4" />
@@ -453,7 +478,7 @@ export default function HomePage() {
                         <button
                           onClick={handleFlip}
                           disabled={!hasImages}
-                          className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                          className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
                           title="镜像"
                         >
                           <FlipHorizontal className="w-4 h-4" />
@@ -462,7 +487,7 @@ export default function HomePage() {
                         <button
                           onClick={handleReset}
                           disabled={!hasImages}
-                          className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                          className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
                           title={t('reset')}
                         >
                           <RotateCcw className="w-4 h-4" />
@@ -471,7 +496,7 @@ export default function HomePage() {
                         <button
                           onClick={handleDownload}
                           disabled={!hasImages}
-                          className="flex items-center justify-center gap-1 px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                          className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors shadow-sm"
                           title={t('download')}
                         >
                           <Download className="w-4 h-4" />
@@ -491,15 +516,15 @@ export default function HomePage() {
         </main>
       </div>
 
-      <footer className="flex items-center justify-center gap-2 px-4 py-2 border-t border-border bg-muted/30 text-xs text-muted-foreground shrink-0">
+      <footer className="flex items-center justify-center gap-2 px-4 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground shrink-0">
         <Shield className="w-3 h-3" />
         <span>{t('privacyNote')}</span>
       </footer>
 
       {/* 确认弹窗 */}
       {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 max-w-sm mx-4 shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-xl">
             <h3 className="text-lg font-bold mb-2">确认替换</h3>
             <p className="text-sm text-muted-foreground mb-4">
               是否清空工作区内容？当前已有的操作将不会保存。
@@ -507,13 +532,13 @@ export default function HomePage() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={handleCancelUpload}
-                className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm"
+                className="px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 text-sm transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={handleConfirmUpload}
-                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm transition-colors shadow-sm"
               >
                 确认替换
               </button>
@@ -525,7 +550,7 @@ export default function HomePage() {
       {/* 全屏图片预览 */}
       {showFullscreenImage && previewImage && (
         <div
-          className="fixed inset-0 z-1000 bg-black flex items-center justify-center cursor-pointer"
+          className="fixed inset-0 z-1000 bg-black/95 flex items-center justify-center cursor-pointer"
           onClick={() => setShowFullscreenImage(false)}
         >
           <img
@@ -535,10 +560,10 @@ export default function HomePage() {
           />
           <button
             onClick={() => setShowFullscreenImage(false)}
-            className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+            className="absolute top-4 right-4 p-2 bg-black/40 text-white rounded-full hover:bg-black/60 transition-colors"
             title="关闭"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       )}
