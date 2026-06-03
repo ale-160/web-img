@@ -37,8 +37,7 @@ export const watermarkPresets: WatermarkPreset[] = [
   { id: 'wechat', text: '微信号: xxxxx', pattern: 'single', opacity: 0.5 },
 ];
 
-// 移除了 'convert'，格式转换功能已整合到压缩功能中
-export type ToolTab = 'compress' | 'edit' | 'watermark' | 'merge' | 'color';
+export type ToolTab = 'adjust' | 'watermark' | 'merge';
 
 export interface FormatPreset {
   id: string;

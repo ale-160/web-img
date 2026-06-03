@@ -11,11 +11,9 @@ interface ToolPanelProps {
 }
 
 const tabs: { id: ToolTab; label: string; labelEn: string; icon: string }[] = [
-  { id: 'compress', label: '压缩', labelEn: 'Compress', icon: '📦' },
-  { id: 'edit', label: '编辑', labelEn: 'Edit', icon: '✏️' },
+  { id: 'adjust', label: '调整', labelEn: 'Adjust', icon: '✏️' },
   { id: 'watermark', label: '水印', labelEn: 'Watermark', icon: '💧' },
   { id: 'merge', label: '合并', labelEn: 'Merge', icon: '🖼️' },
-  { id: 'color', label: '颜色', labelEn: 'Color', icon: '🎨' },
 ];
 
 interface ToolPanelItemProps {

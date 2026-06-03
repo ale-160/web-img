@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { compressImage, ImageFormat, loadImage, ResizeMode } from '@/utils/canvas';
+import { compressImage, ImageFormat, loadImage, createCanvas } from '@/utils/canvas';
 import { sizePresets, exportFormats, ExportFormat, SizePreset, FormatPreset } from '@/data/presets';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -11,30 +11,62 @@ import { PresetManagerModal } from '@/components/ui/PresetManagerModal';
 import { CropModal } from '@/components/ui/CropModal';
 import { FormatManagerModal } from '@/components/ui/FormatManagerModal';
 
-interface CompressPanelProps {
+interface AdjustPanelProps {
   imageUrl: string;
   imageWidth: number;
   imageHeight: number;
   imageSize: number;
   onApply: (imageData: string, width: number, height: number) => void;
+  resetSignal?: number;
 }
 
-export function CompressPanel({
+const DEFAULT_VALUES = {
+  quality: 100,
+  maxWidth: undefined as number | undefined,
+  maxHeight: undefined as number | undefined,
+  format: 'jpeg' as ExportFormat,
+  resizeMode: 'stretch' as const,
+  cropX: undefined as number | undefined,
+  cropY: undefined as number | undefined,
+  brightness: 100,
+  contrast: 100,
+  saturate: 100,
+  blur: 0,
+  r: 100,
+  g: 100,
+  b: 100,
+};
+
+export function AdjustPanel({
   imageUrl,
   imageWidth,
   imageHeight,
   imageSize: _imageSize,
-  onApply
-}: CompressPanelProps) {
+  onApply,
+  resetSignal = 0,
+}: AdjustPanelProps) {
   const { language } = useLanguage();
-  const [quality, setQuality] = useState(100);
-  const [maxWidth, setMaxWidth] = useState<number | undefined>(undefined);
-  const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
-  const [format, setFormat] = useState<ExportFormat>('jpeg');
+
+  // 压缩相关
+  const [quality, setQuality] = useState(DEFAULT_VALUES.quality);
+  const [maxWidth, setMaxWidth] = useState<number | undefined>(DEFAULT_VALUES.maxWidth);
+  const [maxHeight, setMaxHeight] = useState<number | undefined>(DEFAULT_VALUES.maxHeight);
+  const [format, setFormat] = useState<ExportFormat>(DEFAULT_VALUES.format);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
-  const [resizeMode, setResizeMode] = useState<ResizeMode>('stretch');
-  const [cropX, setCropX] = useState<number | undefined>(undefined);
-  const [cropY, setCropY] = useState<number | undefined>(undefined);
+  const [resizeMode, setResizeMode] = useState<'stretch' | 'crop'>(DEFAULT_VALUES.resizeMode);
+  const [cropX, setCropX] = useState<number | undefined>(DEFAULT_VALUES.cropX);
+  const [cropY, setCropY] = useState<number | undefined>(DEFAULT_VALUES.cropY);
+
+  // 图像效果相关
+  const [brightness, setBrightness] = useState(DEFAULT_VALUES.brightness);
+  const [contrast, setContrast] = useState(DEFAULT_VALUES.contrast);
+  const [saturate, setSaturate] = useState(DEFAULT_VALUES.saturate);
+  const [blur, setBlur] = useState(DEFAULT_VALUES.blur);
+
+  // RGB调整
+  const [r, setR] = useState(DEFAULT_VALUES.r);
+  const [g, setG] = useState(DEFAULT_VALUES.g);
+  const [b, setB] = useState(DEFAULT_VALUES.b);
 
   // 模态框状态
   const [showPresetManager, setShowPresetManager] = useState(false);
@@ -63,36 +95,52 @@ export function CompressPanel({
   const maxHeightRef = useRef<number | undefined>(undefined);
   const formatRef = useRef<ExportFormat>('jpeg');
   const qualityRef = useRef<number>(100);
-  const resizeModeRef = useRef<ResizeMode>('stretch');
+  const resizeModeRef = useRef<'stretch' | 'crop'>('stretch');
   const cropXRef = useRef<number | undefined>(undefined);
   const cropYRef = useRef<number | undefined>(undefined);
   const originalImageRef = useRef<{ url: string; width: number; height: number } | null>(null);
+
+  // 监听resetSignal来重置所有设置
+  useEffect(() => {
+    if (resetSignal > 0) {
+      setQuality(DEFAULT_VALUES.quality);
+      setMaxWidth(DEFAULT_VALUES.maxWidth);
+      setMaxHeight(DEFAULT_VALUES.maxHeight);
+      setFormat(DEFAULT_VALUES.format);
+      setSelectedPreset(null);
+      setResizeMode(DEFAULT_VALUES.resizeMode);
+      setCropX(DEFAULT_VALUES.cropX);
+      setCropY(DEFAULT_VALUES.cropY);
+      setBrightness(DEFAULT_VALUES.brightness);
+      setContrast(DEFAULT_VALUES.contrast);
+      setSaturate(DEFAULT_VALUES.saturate);
+      setBlur(DEFAULT_VALUES.blur);
+      setR(DEFAULT_VALUES.r);
+      setG(DEFAULT_VALUES.g);
+      setB(DEFAULT_VALUES.b);
+      setShowCustomInput(false);
+    }
+  }, [resetSignal]);
 
   // 同步ref值
   useEffect(() => {
     maxWidthRef.current = maxWidth;
   }, [maxWidth]);
-
   useEffect(() => {
     maxHeightRef.current = maxHeight;
   }, [maxHeight]);
-
   useEffect(() => {
     formatRef.current = format;
   }, [format]);
-
   useEffect(() => {
     qualityRef.current = quality;
   }, [quality]);
-
   useEffect(() => {
     resizeModeRef.current = resizeMode;
   }, [resizeMode]);
-
   useEffect(() => {
     cropXRef.current = cropX;
   }, [cropX]);
-
   useEffect(() => {
     cropYRef.current = cropY;
   }, [cropY]);
@@ -101,18 +149,55 @@ export function CompressPanel({
     originalImageRef.current = { url: imageUrl, width: imageWidth, height: imageHeight };
   }, [imageUrl, imageWidth, imageHeight]);
 
+  // 处理效果函数
+  const applyEffects = useCallback(async (img: HTMLImageElement) => {
+    const { canvas, ctx } = createCanvas(img.width, img.height);
+
+    // 应用滤镜
+    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) blur(${blur}px)`;
+    ctx.drawImage(img, 0, 0);
+
+    // 重置滤镜以应用RGB
+    ctx.filter = 'none';
+
+    // 应用RGB调整
+    if (r !== 100 || g !== 100 || b !== 100) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = Math.min(255, Math.max(0, Math.round(data[i] * (r / 100))));
+        data[i + 1] = Math.min(255, Math.max(0, Math.round(data[i + 1] * (g / 100))));
+        data[i + 2] = Math.min(255, Math.max(0, Math.round(data[i + 2] * (b / 100))));
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    }
+
+    return canvas;
+  }, [brightness, contrast, saturate, blur, r, g, b]);
+
   const handleApply = useCallback(async () => {
     if (!originalImageRef.current) return;
 
     try {
       const response = await fetch(originalImageRef.current.url);
       const blob = await response.blob();
-      const file = new File([blob], 'image', { type: blob.type });
 
-      // 使用ref中的最新值
+      // 先应用图像效果
+      const img = await loadImage(blob);
+      const effectCanvas = await applyEffects(img);
+
+      // 从效果画布创建Blob进行压缩
+      const effectBlob = await new Promise<Blob>(resolve => {
+        effectCanvas.toBlob((blob) => resolve(blob!), 'image/png');
+      });
+      const effectFile = new File([effectBlob!], 'effect.png', { type: 'image/png' });
+
+      // 应用压缩
       const imageFormat = formatRef.current as ImageFormat;
       const compressed = await compressImage(
-        file,
+        effectFile,
         qualityRef.current,
         maxWidthRef.current,
         maxHeightRef.current,
@@ -121,19 +206,20 @@ export function CompressPanel({
         cropXRef.current,
         cropYRef.current
       );
+
       const dataUrl = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
         reader.readAsDataURL(compressed);
       });
 
-      const img = await loadImage(compressed);
-      onApply(dataUrl, img.width, img.height);
+      const finalImg = await loadImage(compressed);
+      onApply(dataUrl, finalImg.width, finalImg.height);
       toast.success('处理完成');
     } catch (_error) {
-      toast.error('压缩失败');
+      toast.error('处理失败');
     }
-  }, [onApply]);
+  }, [onApply, applyEffects]);
 
   const handleFormatClick = useCallback((newFormat: ExportFormat) => {
     setFormat(newFormat);
@@ -144,19 +230,20 @@ export function CompressPanel({
     setSelectedPreset(preset.id);
     setMaxWidth(preset.width);
     setMaxHeight(preset.height);
-    // 重置裁剪位置
     setCropX(undefined);
     setCropY(undefined);
     setShowCustomInput(false);
     setTimeout(() => handleApply(), 0);
   }, [handleApply]);
-
-  const handleQualityChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setQuality(Number(e.target.value));
   }, []);
-
   const handleQualityChangeEnd = useCallback(() => {
     setTimeout(() => handleApply(), 0);
+  }, [handleApply]);
+
+  const handleSliderChangeEnd = useCallback(() => {
+    setTimeout(() => handleApply(), 150);
   }, [handleApply]);
 
   const handleCustomClick = useCallback(() => {
@@ -172,7 +259,7 @@ export function CompressPanel({
     setTimeout(() => handleApply(), 0);
   }, [customWidth, customHeight, handleApply]);
 
-  const handleResizeModeClick = useCallback((mode: ResizeMode) => {
+  const handleResizeModeClick = useCallback((mode: 'stretch' | 'crop') => {
     setResizeMode(mode);
     if (mode === 'crop' && maxWidth && maxHeight) {
       setShowCropModal(true);
@@ -193,8 +280,97 @@ export function CompressPanel({
     setTimeout(() => handleApply(), 0);
   }, [handleApply]);
 
+  // 可编辑数值的滑块组件
+  const SliderWithInput = ({
+    label,
+    value,
+    onChange,
+    onChangeEnd,
+    min,
+    max,
+    suffix = '%',
+    labelClass = '',
+  }: {
+    label: string;
+    value: number;
+    onChange: (val: number) => void;
+    onChangeEnd: () => void;
+    min: number;
+    max: number;
+    suffix?: string;
+    labelClass?: string;
+  }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [inputValue, setInputValue] = useState(String(value));
+
+    useEffect(() => {
+      setInputValue(String(value));
+    }, [value]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setInputValue(e.target.value);
+    };
+
+    const handleInputBlur = () => {
+      let val = Number(inputValue);
+      if (isNaN(val)) val = value;
+      val = Math.max(min, Math.min(max, val));
+      onChange(val);
+      setIsEditing(false);
+      onChangeEnd();
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        handleInputBlur();
+      } else if (e.key === 'Escape') {
+        setInputValue(String(value));
+        setIsEditing(false);
+      }
+    };
+
+    return (
+      <div>
+        <div className={`flex items-center mb-1 ${labelClass}`}>
+          <span className="text-sm font-medium">{label}：</span>
+          {isEditing ? (
+            <input
+              type="number"
+              value={inputValue}
+              onChange={handleInputChange}
+              onBlur={handleInputBlur}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="w-12 px-1 py-0 text-sm bg-muted border border-border rounded text-center"
+              min={min}
+              max={max}
+            />
+          ) : (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              {value}{suffix}
+            </button>
+          )}
+        </div>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          onMouseUp={onChangeEnd}
+          onTouchEnd={onChangeEnd}
+          className="w-full"
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      {/* 目标格式 */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium">{language === 'zh' ? '目标格式' : 'Target Format'}</label>
@@ -225,6 +401,7 @@ export function CompressPanel({
         </div>
       </div>
 
+      {/* 预设尺寸 */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium">{language === 'zh' ? '预设尺寸' : 'Preset Size'}</label>
@@ -311,6 +488,7 @@ export function CompressPanel({
           </div>
         )}
 
+        {/* 调整方式 */}
         <div className="flex items-center justify-between mb-2 mt-4">
           <label className="text-sm font-medium">{language === 'zh' ? '调整方式' : 'Resize Mode'}</label>
         </div>
@@ -341,20 +519,112 @@ export function CompressPanel({
         </div>
       </div>
 
+      {/* 压缩质量 */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium">{language === 'zh' ? '压缩质量' : 'Quality'}</label>
-          <span className="text-sm text-muted-foreground">{quality}%</span>
-        </div>
-        <input
-          type="range"
-          min="1"
-          max="100"
+        <SliderWithInput
+          label={language === 'zh' ? '压缩质量' : 'Quality'}
           value={quality}
-          onChange={handleQualityChange}
-          onMouseUp={handleQualityChangeEnd}
-          onTouchEnd={handleQualityChangeEnd}
-          className="w-full"
+          onChange={setQuality}
+          onChangeEnd={handleQualityChangeEnd}
+          min={1}
+          max={100}
+          suffix="%"
+        />
+      </div>
+
+      {/* 分割线 */}
+      <div className="border-t border-border my-2"></div>
+
+      {/* 图像效果 */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-medium">{language === 'zh' ? '图像效果' : 'Image Effects'}</h3>
+
+        {/* 亮度 */}
+        <SliderWithInput
+          label={language === 'zh' ? '亮度' : 'Brightness'}
+          value={brightness}
+          onChange={setBrightness}
+          onChangeEnd={handleSliderChangeEnd}
+          min={0}
+          max={200}
+          suffix="%"
+        />
+
+        {/* 对比度 */}
+        <SliderWithInput
+          label={language === 'zh' ? '对比度' : 'Contrast'}
+          value={contrast}
+          onChange={setContrast}
+          onChangeEnd={handleSliderChangeEnd}
+          min={0}
+          max={200}
+          suffix="%"
+        />
+
+        {/* 饱和度 */}
+        <SliderWithInput
+          label={language === 'zh' ? '饱和度' : 'Saturation'}
+          value={saturate}
+          onChange={setSaturate}
+          onChangeEnd={handleSliderChangeEnd}
+          min={0}
+          max={200}
+          suffix="%"
+        />
+
+        {/* 模糊 */}
+        <SliderWithInput
+          label={language === 'zh' ? '模糊' : 'Blur'}
+          value={blur}
+          onChange={setBlur}
+          onChangeEnd={handleSliderChangeEnd}
+          min={0}
+          max={20}
+          suffix="px"
+        />
+      </div>
+
+      {/* 分割线 */}
+      <div className="border-t border-border my-2"></div>
+
+      {/* RGB调整 */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-medium">{language === 'zh' ? 'RGB调整' : 'RGB Adjustments'}</h3>
+
+        {/* 红色 */}
+        <SliderWithInput
+          label="R"
+          value={r}
+          onChange={setR}
+          onChangeEnd={handleSliderChangeEnd}
+          min={0}
+          max={200}
+          suffix="%"
+          labelClass="text-red-500"
+        />
+
+        {/* 绿色 */}
+        <SliderWithInput
+          label="G"
+          value={g}
+          onChange={setG}
+          onChangeEnd={handleSliderChangeEnd}
+          min={0}
+          max={200}
+          suffix="%"
+          labelClass="text-green-500"
+        />
+
+        {/* 蓝色 */}
+        <SliderWithInput
+          label="B"
+          value={b}
+          onChange={setB}
+          onChangeEnd={handleSliderChangeEnd}
+          min={0}
+          max={200}
+          suffix="%"
+          labelClass="text-blue-500"
         />
       </div>
 

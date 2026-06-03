@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,26 +23,26 @@ type HandleType = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw' | 'move';
 
 export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, cropWidth: targetWidth, cropHeight: targetHeight, onCrop, initialX, initialY }: CropModalProps) {
   const { language } = useLanguage();
-  
+
   // 实际裁剪区域尺寸（可能被用户调整）
   const [actualCropWidth, setActualCropWidth] = useState(targetWidth);
   const [actualCropHeight, setActualCropHeight] = useState(targetHeight);
-  
+
   // 裁剪框位置
   const [cropPos, setCropPos] = useState({ x: 0, y: 0 });
-  
 
-  
+
+
   // 拖拽状态
   const [isDragging, setIsDragging] = useState(false);
   const [activeHandle, setActiveHandle] = useState<HandleType | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [startCropData, setStartCropData] = useState({ x: 0, y: 0, width: 0, height: 0 });
-  
+
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-  
+
   // 计算显示尺寸
   const [displayData, setDisplayData] = useState({
     imageWidth: 0,
@@ -63,7 +63,7 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
         containerRect.height / imageHeight,
         1
       );
-      
+
       const displayImageWidth = imageWidth * scale;
       const displayImageHeight = imageHeight * scale;
       const displayCropWidth = actualCropWidth * scale;
@@ -71,10 +71,10 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
 
       const maxX = displayImageWidth - displayCropWidth;
       const maxY = displayImageHeight - displayCropHeight;
-      
+
       let newX;
       let newY;
-      
+
       if (initialX !== undefined && initialY !== undefined) {
         newX = initialX * scale;
         newY = initialY * scale;
@@ -82,10 +82,10 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
         newX = Math.max(0, maxX / 2);
         newY = Math.max(0, maxY / 2);
       }
-      
+
       newX = Math.max(0, Math.min(newX, maxX));
       newY = Math.max(0, Math.min(newY, maxY));
-      
+
       setCropPos({ x: newX, y: newY });
       setDisplayData({
         imageWidth: displayImageWidth,
@@ -118,31 +118,31 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !activeHandle) return;
     e.preventDefault();
-    
+
     const deltaX = e.clientX - dragStart.x;
     const deltaY = e.clientY - dragStart.y;
-    
+
     // 处理移动或调整大小
     if (activeHandle === 'move') {
       const maxX = displayData.imageWidth - displayData.cropWidth;
       const maxY = displayData.imageHeight - displayData.cropHeight;
-      
+
       let newX = startCropData.x + deltaX;
       let newY = startCropData.y + deltaY;
-      
+
       newX = Math.max(0, Math.min(newX, maxX));
       newY = Math.max(0, Math.min(newY, maxY));
-      
+
       setCropPos({ x: newX, y: newY });
     } else {
       // 处理调整大小 - 保持宽高比
       const aspectRatio = targetWidth / targetHeight;
-      
+
       let newWidth = startCropData.width;
       let newHeight = startCropData.height;
       let newX = startCropData.x;
       let newY = startCropData.y;
-      
+
       // 根据手柄类型决定如何调整
       switch (activeHandle) {
         case 'e':
@@ -184,40 +184,36 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
           newY = startCropData.y + deltaY;
           break;
       }
-      
+
       // 限制最小尺寸
       const minSize = 50;
       if (newWidth < minSize) newWidth = minSize;
       if (newHeight < minSize) newHeight = minSize;
-      
-      // 限制在图片范围内
-      const maxWidth = displayData.imageWidth - newX;
-      const maxHeight = displayData.imageHeight - newY;
-      
+
       if (newX < 0) {
         const adjust = -newX;
         newX = 0;
         newWidth = startCropData.width + adjust;
         newHeight = newWidth / aspectRatio;
       }
-      
+
       if (newY < 0) {
         const adjust = -newY;
         newY = 0;
         newHeight = startCropData.height + adjust;
         newWidth = newHeight * aspectRatio;
       }
-      
+
       if (newX + newWidth > displayData.imageWidth) {
         newWidth = displayData.imageWidth - newX;
         newHeight = newWidth / aspectRatio;
       }
-      
+
       if (newY + newHeight > displayData.imageHeight) {
         newHeight = displayData.imageHeight - newY;
         newWidth = newHeight * aspectRatio;
       }
-      
+
       // 更新裁剪尺寸
       setActualCropWidth(Math.round(newWidth / displayData.scale));
       setActualCropHeight(Math.round(newHeight / displayData.scale));
@@ -246,7 +242,7 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
   const handleConfirm = useCallback(() => {
     const realX = cropPos.x / displayData.scale;
     const realY = cropPos.y / displayData.scale;
-    
+
     onCrop(realX, realY, actualCropWidth, actualCropHeight);
     onClose();
   }, [cropPos, displayData.scale, actualCropWidth, actualCropHeight, onCrop, onClose]);
@@ -305,52 +301,52 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
                   objectFit: 'contain',
                 }}
               />
-              
+
 
               {/* 裁剪框遮罩层 */}
               <div className="absolute inset-0 pointer-events-none">
                 {/* 顶部遮罩 */}
-                <div 
+                <div
                   className="absolute bg-black/50"
-                  style={{ 
-                    top: 0, 
-                    left: 0, 
-                    right: 0, 
-                    height: cropPos.y 
-                  }} 
+                  style={{
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: cropPos.y
+                  }}
                 />
                 {/* 底部遮罩 */}
-                <div 
+                <div
                   className="absolute bg-black/50"
-                  style={{ 
-                    bottom: 0, 
-                    left: 0, 
-                    right: 0, 
-                    height: displayData.imageHeight - cropPos.y - displayData.cropHeight 
-                  }} 
+                  style={{
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: displayData.imageHeight - cropPos.y - displayData.cropHeight
+                  }}
                 />
                 {/* 左侧遮罩 */}
-                <div 
+                <div
                   className="absolute bg-black/50"
-                  style={{ 
-                    top: cropPos.y, 
-                    left: 0, 
-                    width: cropPos.x, 
-                    height: displayData.cropHeight 
-                  }} 
+                  style={{
+                    top: cropPos.y,
+                    left: 0,
+                    width: cropPos.x,
+                    height: displayData.cropHeight
+                  }}
                 />
                 {/* 右侧遮罩 */}
-                <div 
+                <div
                   className="absolute bg-black/50"
-                  style={{ 
-                    top: cropPos.y, 
-                    right: 0, 
-                    width: displayData.imageWidth - cropPos.x - displayData.cropWidth, 
-                    height: displayData.cropHeight 
-                  }} 
+                  style={{
+                    top: cropPos.y,
+                    right: 0,
+                    width: displayData.imageWidth - cropPos.x - displayData.cropWidth,
+                    height: displayData.cropHeight
+                  }}
                 />
               </div>
-              
+
               {/* 裁剪框 */}
               <div
                 className={cn(
@@ -366,41 +362,41 @@ export function CropModal({ isOpen, onClose, imageUrl, imageWidth, imageHeight, 
                 onMouseDown={(e) => handleMouseDown(e, 'move')}
               >
                 {/* 边角手柄 */}
-                <div 
-                  className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-primary rounded-full cursor-nw-resize" 
-                  onMouseDown={(e) => handleMouseDown(e, 'nw')} 
+                <div
+                  className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-primary rounded-full cursor-nw-resize"
+                  onMouseDown={(e) => handleMouseDown(e, 'nw')}
                 />
-                <div 
-                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full cursor-ne-resize" 
-                  onMouseDown={(e) => handleMouseDown(e, 'ne')} 
+                <div
+                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full cursor-ne-resize"
+                  onMouseDown={(e) => handleMouseDown(e, 'ne')}
                 />
-                <div 
-                  className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-primary rounded-full cursor-sw-resize" 
-                  onMouseDown={(e) => handleMouseDown(e, 'sw')} 
+                <div
+                  className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-primary rounded-full cursor-sw-resize"
+                  onMouseDown={(e) => handleMouseDown(e, 'sw')}
                 />
-                <div 
-                  className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full cursor-se-resize" 
-                  onMouseDown={(e) => handleMouseDown(e, 'se')} 
+                <div
+                  className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-primary rounded-full cursor-se-resize"
+                  onMouseDown={(e) => handleMouseDown(e, 'se')}
                 />
-                
+
                 {/* 边框中点手柄 */}
-                <div 
-                  className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rounded-full cursor-n-resize" 
-                  onMouseDown={(e) => handleMouseDown(e, 'n')} 
+                <div
+                  className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rounded-full cursor-n-resize"
+                  onMouseDown={(e) => handleMouseDown(e, 'n')}
                 />
-                <div 
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 -mb-1.5 w-4 h-4 bg-primary rounded-full cursor-s-resize" 
-                  onMouseDown={(e) => handleMouseDown(e, 's')} 
+                <div
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 -mb-1.5 w-4 h-4 bg-primary rounded-full cursor-s-resize"
+                  onMouseDown={(e) => handleMouseDown(e, 's')}
                 />
-                <div 
-                  className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-4 h-4 bg-primary rounded-full cursor-w-resize" 
-                  onMouseDown={(e) => handleMouseDown(e, 'w')} 
+                <div
+                  className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-4 h-4 bg-primary rounded-full cursor-w-resize"
+                  onMouseDown={(e) => handleMouseDown(e, 'w')}
                 />
-                <div 
-                  className="absolute top-1/2 right-0 -translate-y-1/2 -mr-1.5 w-4 h-4 bg-primary rounded-full cursor-e-resize" 
-                  onMouseDown={(e) => handleMouseDown(e, 'e')} 
+                <div
+                  className="absolute top-1/2 right-0 -translate-y-1/2 -mr-1.5 w-4 h-4 bg-primary rounded-full cursor-e-resize"
+                  onMouseDown={(e) => handleMouseDown(e, 'e')}
                 />
-                
+
                 {/* 网格辅助线 */}
                 <div className="absolute inset-0 pointer-events-none">
                   <div className="absolute top-1/3 left-0 right-0 border-t border-dashed border-primary/30" />
