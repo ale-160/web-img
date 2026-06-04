@@ -48,7 +48,8 @@ export function useImageEditor(): UseImageEditorReturn {
 
   const addImages = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
-    const validFiles = fileArray.filter(f => f.type.startsWith('image/'));
+    // 接受所有文件，因为PDF会被转换为图片
+    const validFiles = fileArray;
     
     for (const file of validFiles) {
       const { width, height } = await loadImage(file);

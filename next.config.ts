@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // 配置 Turbopack（Next.js 16 默认使用）
+  turbopack: {},
 };
 
 export default nextConfig;

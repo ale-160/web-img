@@ -107,6 +107,8 @@ export interface Translations {
   processSuccess: string;
   processFailed: string;
   imageOnly: string;
+  pdfProcessing: string;
+  pdfConverted: string;
   watermarkFailed: string;
   mergeFailed: string;
   dropHere: string;
@@ -255,7 +257,9 @@ export const zhStrings: Record<keyof Translations, string> = {
   languageSwitched: '语言已切换',
   processSuccess: '处理完成',
   processFailed: '处理失败',
-  imageOnly: '仅支持图片文件格式',
+  imageOnly: '仅支持图片和PDF文件格式',
+  pdfProcessing: '正在处理PDF...',
+  pdfConverted: 'PDF已转为图片',
   watermarkFailed: '水印处理失败',
   mergeFailed: '合并处理失败',
   dropHere: '释放图片',
@@ -404,7 +408,9 @@ export const enStrings: Record<keyof Translations, string> = {
   languageSwitched: 'Language switched',
   processSuccess: 'Processing complete',
   processFailed: 'Processing failed',
-  imageOnly: 'Only image files are supported',
+  imageOnly: 'Only image and PDF files are supported',
+  pdfProcessing: 'Processing PDF...',
+  pdfConverted: 'PDF converted to image',
   watermarkFailed: 'Watermark failed',
   mergeFailed: 'Merge failed',
   dropHere: 'Drop images here',

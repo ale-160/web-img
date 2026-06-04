@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useState } from 'react';
-import { Upload, ImagePlus } from 'lucide-react';
+import { Upload, ImagePlus, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/hooks/useLanguage';
 
@@ -27,7 +27,12 @@ const isImageFile = (file: File): boolean => {
   return supportedImageExtensions.includes(ext);
 };
 
-export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*', compact = false }: UploadZoneProps) {
+// 检查是否为PDF文件
+const isPdfFile = (file: File): boolean => {
+  return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+};
+
+export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*,application/pdf', compact = false }: UploadZoneProps) {
   const { t } = useLanguage();
   const [isDragging, setIsDragging] = useState(false);
 
@@ -69,7 +74,7 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
     }
 
     if (filesToProcess.length > 0) {
-      const validImageFiles = filesToProcess.filter(isImageFile);
+      const validImageFiles = filesToProcess.filter(file => isImageFile(file) || isPdfFile(file));
 
       if (validImageFiles.length > 0) {
         onFilesSelected(validImageFiles);
@@ -82,7 +87,7 @@ export function UploadZone({ onFilesSelected, multiple = true, accept = 'image/*
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const validFiles = Array.from(files).filter(isImageFile);
+      const validFiles = Array.from(files).filter(file => isImageFile(file) || isPdfFile(file));
       if (validFiles.length > 0) {
         onFilesSelected(validFiles);
       } else {

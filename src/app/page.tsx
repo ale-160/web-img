@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Moon, Sun, Download, Trash2, Globe, Shield, Edit2, Check, X, RotateCcw, Maximize, Minimize, Eye, EyeOff, RotateCw, FlipHorizontal } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Moon, Sun, Download, Trash2, Globe, Shield, Edit2, Check, X, RotateCcw, Maximize, Minimize, Eye, EyeOff, RotateCw, FlipHorizontal, Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage, zhStrings, enStrings } from '@/hooks/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
@@ -14,10 +15,12 @@ import { AdjustPanel } from '@/components/features/CompressPanel';
 import { WatermarkPanel } from '@/components/features/WatermarkPanel';
 import { MergePanel } from '@/components/features/MergePanel';
 import { downloadFile, formatFileSize } from '@/utils/file';
+import { isPdfFile } from '@/utils/pdfToImage';
 import type { ToolTab } from '@/data/presets';
 import { cn } from '@/lib/utils';
 
 export default function HomePage() {
+  const router = useRouter();
   const { language, t, toggleLanguage, isMounted: langMounted } = useLanguage();
   const { theme, toggleTheme, isMounted: themeMounted } = useTheme();
   const {
@@ -42,6 +45,9 @@ export default function HomePage() {
   const [isFlipped, setIsFlipped] = useState(false);
   const [rotation, setRotation] = useState(0);
 
+  // 拖拽相关状态
+  const [isDragging, setIsDragging] = useState(false);
+
   // 功能开发中弹窗
   const [devModalOpen, setDevModalOpen] = useState(false);
   const [devFeatureName, setDevFeatureName] = useState('');
@@ -59,23 +65,25 @@ export default function HomePage() {
     }
   }, [langMounted, themeMounted, theme]);
 
-  // 全局拖拽事件处理，防止浏览器打开新标签页
-  useEffect(() => {
-    const handleGlobalDrag = (e: DragEvent) => {
-      e.preventDefault();
-    };
-
-    window.addEventListener('dragover', handleGlobalDrag);
-    window.addEventListener('drop', handleGlobalDrag);
-
-    return () => {
-      window.removeEventListener('dragover', handleGlobalDrag);
-      window.removeEventListener('drop', handleGlobalDrag);
-    };
-  }, []);
-
   // 侧边栏：有 tab 选中时自动展开
   const sidebarOpen = sidebarPinned || activeTab !== null;
+
+  // 处理PDF文件 - 跳转到 /pdf 页面
+  const processFilesWithPdf = useCallback(async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    
+    // 检查是否有 PDF 文件
+    const hasPdf = fileArray.some(isPdfFile);
+    
+    if (hasPdf) {
+      // 直接跳转到 PDF 处理页面
+      router.push('/pdf');
+    } else {
+      // 普通图片文件，直接添加
+      addImages(fileArray);
+      setActiveTab('adjust');
+    }
+  }, [addImages, router]);
 
   // 添加图片后设置默认格式和添加到历史
   const handleFilesSelected = useCallback((files: FileList | File[]) => {
@@ -83,20 +91,18 @@ export default function HomePage() {
       setPendingFiles(files);
       setShowConfirmDialog(true);
     } else {
-      addImages(files);
-      setActiveTab('adjust');
+      processFilesWithPdf(files);
     }
-  }, [previewImage, addImages]);
+  }, [previewImage, processFilesWithPdf]);
 
   const handleConfirmUpload = useCallback(() => {
     if (pendingFiles) {
       clearImages();
-      addImages(pendingFiles);
-      setActiveTab('adjust');
+      processFilesWithPdf(pendingFiles);
     }
     setShowConfirmDialog(false);
     setPendingFiles(null);
-  }, [pendingFiles, clearImages, addImages]);
+  }, [pendingFiles, clearImages, processFilesWithPdf]);
 
   const handleCancelUpload = useCallback(() => {
     setShowConfirmDialog(false);
@@ -272,6 +278,83 @@ export default function HomePage() {
     setActiveTab(tab);
   }, [t]);
 
+  // 根元素拖拽事件处理
+  const handleRootDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleRootDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleRootDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const items = e.dataTransfer.items;
+    let filesToProcess: File[] = [];
+
+    if (items && items.length > 0) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].kind === 'file') {
+          const file = items[i].getAsFile();
+          if (file) {
+            filesToProcess.push(file);
+          }
+        }
+      }
+    }
+
+    if (filesToProcess.length === 0 && e.dataTransfer.files.length > 0) {
+      filesToProcess = Array.from(e.dataTransfer.files);
+    }
+
+    if (filesToProcess.length > 0) {
+      handleFilesSelected(filesToProcess);
+    }
+  }, [handleFilesSelected]);
+
+  // 全局拖拽处理
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      const filesToProcess = Array.from(e.dataTransfer.files);
+      if (filesToProcess.length > 0) {
+        handleFilesSelected(filesToProcess);
+      }
+    };
+
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, [handleFilesSelected]);
+
   if (!isMounted) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
@@ -293,7 +376,25 @@ export default function HomePage() {
         : t('toolPanel');
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground">
+    <div
+      className={cn(
+        "flex flex-col h-screen bg-background text-foreground transition-colors duration-200",
+        isDragging && "bg-primary/5"
+      )}
+      onDragOver={handleRootDragOver}
+      onDragLeave={handleRootDragLeave}
+      onDrop={handleRootDrop}
+    >
+      {/* 拖拽指示覆盖层 */}
+      {isDragging && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 pointer-events-none">
+          <div className="bg-card p-8 rounded-xl shadow-2xl border-2 border-dashed border-primary flex flex-col items-center gap-4">
+            <Upload className="w-16 h-16 text-primary" />
+            <p className="text-lg font-semibold">{t('dropHere')}</p>
+          </div>
+        </div>
+      )}
+
       {/* 顶部导航栏 */}
       <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-card shrink-0 z-10">
         <div className="flex items-center gap-3">
@@ -663,6 +764,8 @@ export default function HomePage() {
         onUseAnyway={handleBypassDev}
         featureName={devFeatureName}
       />
+
+
     </div>
   );
 }
