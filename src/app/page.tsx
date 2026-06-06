@@ -2,11 +2,12 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Moon, Sun, Download, Trash2, Globe, Shield, Edit2, Check, X, RotateCcw, Maximize, Minimize, Eye, EyeOff, RotateCw, FlipHorizontal, Upload, FileText } from 'lucide-react';
+import { Moon, Sun, Download, Trash2, Globe, Shield, Edit2, Check, X, RotateCcw, Maximize, Minimize, Eye, EyeOff, RotateCw, FlipHorizontal, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage, zhStrings, enStrings } from '@/hooks/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
 import { useImageEditor } from '@/hooks/useImageEditor';
+import { useDragDrop } from '@/hooks/useDragDrop';
 import { UploadZone } from '@/components/ui/UploadZone';
 import { ToolPanel } from '@/components/ui/ToolPanel';
 import { SmallSidebar } from '@/components/ui/SmallSidebar';
@@ -45,9 +46,6 @@ export default function HomePage() {
   const [isFlipped, setIsFlipped] = useState(false);
   const [rotation, setRotation] = useState(0);
 
-  // 拖拽相关状态
-  const [isDragging, setIsDragging] = useState(false);
-
   // 功能开发中弹窗
   const [devModalOpen, setDevModalOpen] = useState(false);
   const [devFeatureName, setDevFeatureName] = useState('');
@@ -71,10 +69,10 @@ export default function HomePage() {
   // 处理PDF文件 - 跳转到 /pdf 页面
   const processFilesWithPdf = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
-    
+
     // 检查是否有 PDF 文件
     const hasPdf = fileArray.some(isPdfFile);
-    
+
     if (hasPdf) {
       // 直接跳转到 PDF 处理页面
       router.push('/pdf');
@@ -91,14 +89,14 @@ export default function HomePage() {
       setPendingFiles(files);
       setShowConfirmDialog(true);
     } else {
-      processFilesWithPdf(files);
+      void processFilesWithPdf(files);
     }
   }, [previewImage, processFilesWithPdf]);
 
   const handleConfirmUpload = useCallback(() => {
     if (pendingFiles) {
       clearImages();
-      processFilesWithPdf(pendingFiles);
+      void processFilesWithPdf(pendingFiles);
     }
     setShowConfirmDialog(false);
     setPendingFiles(null);
@@ -278,82 +276,8 @@ export default function HomePage() {
     setActiveTab(tab);
   }, [t]);
 
-  // 根元素拖拽事件处理
-  const handleRootDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleRootDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  const handleRootDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const items = e.dataTransfer.items;
-    let filesToProcess: File[] = [];
-
-    if (items && items.length > 0) {
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].kind === 'file') {
-          const file = items[i].getAsFile();
-          if (file) {
-            filesToProcess.push(file);
-          }
-        }
-      }
-    }
-
-    if (filesToProcess.length === 0 && e.dataTransfer.files.length > 0) {
-      filesToProcess = Array.from(e.dataTransfer.files);
-    }
-
-    if (filesToProcess.length > 0) {
-      handleFilesSelected(filesToProcess);
-    }
-  }, [handleFilesSelected]);
-
-  // 全局拖拽处理
-  useEffect(() => {
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(true);
-    };
-
-    const handleDragLeave = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-    };
-
-    const handleDrop = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-
-      const filesToProcess = Array.from(e.dataTransfer.files);
-      if (filesToProcess.length > 0) {
-        handleFilesSelected(filesToProcess);
-      }
-    };
-
-    window.addEventListener('dragover', handleDragOver);
-    window.addEventListener('dragleave', handleDragLeave);
-    window.addEventListener('drop', handleDrop);
-
-    return () => {
-      window.removeEventListener('dragover', handleDragOver);
-      window.removeEventListener('dragleave', handleDragLeave);
-      window.removeEventListener('drop', handleDrop);
-    };
-  }, [handleFilesSelected]);
+  // 使用通用的拖拽处理 Hook
+  const { isDragging, dragHandlers } = useDragDrop(handleFilesSelected);
 
   if (!isMounted) {
     return (
@@ -381,9 +305,7 @@ export default function HomePage() {
         "flex flex-col h-screen bg-background text-foreground transition-colors duration-200",
         isDragging && "bg-primary/5"
       )}
-      onDragOver={handleRootDragOver}
-      onDragLeave={handleRootDragLeave}
-      onDrop={handleRootDrop}
+      {...dragHandlers}
     >
       {/* 拖拽指示覆盖层 */}
       {isDragging && (

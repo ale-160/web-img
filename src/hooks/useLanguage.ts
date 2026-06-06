@@ -121,19 +121,6 @@ export interface Translations {
   invisibleHelp: string;
   invisibleHelpText: string;
   imagesAdded: string;
-  imageHistory: string;
-  storageUsage: string;
-  total: string;
-  history: string;
-  pinned: string;
-  noHistory: string;
-  pinnedImages: string;
-  historyImages: string;
-  unpin: string;
-  pin: string;
-  justNow: string;
-  minutesAgo: string;
-  hoursAgo: string;
   underDevelopment: string;
   gotIt: string;
   tryBeta: string;
@@ -272,19 +259,6 @@ export const zhStrings: Record<keyof Translations, string> = {
   invisibleHelp: '隐形水印说明',
   invisibleHelpText: '隐形水印将信息隐藏在图片像素中，肉眼不可见，可通过提取功能还原',
   imagesAdded: '已添加图片',
-  imageHistory: '图片历史记录',
-  storageUsage: '存储使用情况',
-  total: '总计',
-  history: '历史',
-  pinned: '固定',
-  noHistory: '暂无历史记录',
-  pinnedImages: '固定图片',
-  historyImages: '历史图片',
-  unpin: '取消固定',
-  pin: '固定',
-  justNow: '刚刚',
-  minutesAgo: '分钟前',
-  hoursAgo: '小时前',
   underDevelopment: '功能开发中，敬请期待…',
   gotIt: '知道了',
   tryBeta: '试用 Beta',
@@ -423,19 +397,6 @@ export const enStrings: Record<keyof Translations, string> = {
   invisibleHelp: 'Invisible Watermark',
   invisibleHelpText: 'Invisible watermarks embed data into image pixels. Visually undetectable and can be extracted later.',
   imagesAdded: 'Images Added',
-  imageHistory: 'Image History',
-  storageUsage: 'Storage Usage',
-  total: 'Total',
-  history: 'History',
-  pinned: 'Pinned',
-  noHistory: 'No history records',
-  pinnedImages: 'Pinned Images',
-  historyImages: 'History Images',
-  unpin: 'Unpin',
-  pin: 'Pin',
-  justNow: 'Just now',
-  minutesAgo: 'min ago',
-  hoursAgo: 'hr ago',
   underDevelopment: 'This feature is under development. Stay tuned…',
   gotIt: 'Got it',
   tryBeta: 'Try Beta',

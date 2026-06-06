@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import * as pdfjsLib from 'pdfjs-dist';
-import { UploadZone } from '@/components/ui/UploadZone';
+import { useDragDrop } from '@/hooks/useDragDrop';
 import { isPdfFile } from '@/utils/pdfToImage';
 import { FileText, ArrowLeft, Download, X, Loader2 } from 'lucide-react';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
@@ -19,19 +19,16 @@ export default function PdfPage() {
   const [pdfObjectUrl, setPdfObjectUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // 拖拽相关状态
-  const [isDragging, setIsDragging] = useState(false);
-  
+
   // PDF 文档相关
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [pageScale, setPageScale] = useState(2.0);
-  
+  const [pageScale] = useState(2.0);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderLockRef = useRef(false);
-  
+
   // 下载模态框
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState('png');
@@ -67,119 +64,41 @@ export default function PdfPage() {
   const handleFilesSelected = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     const pdfFile = fileArray.find(isPdfFile);
-    
+
     if (!pdfFile) {
       setError('请选择 PDF 文件');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     // 清理之前的资源
     if (pdfObjectUrl) {
       URL.revokeObjectURL(pdfObjectUrl);
     }
-    
+
     const objectUrl = URL.createObjectURL(pdfFile);
     setCurrentPdfFile(pdfFile);
     setPdfObjectUrl(objectUrl);
-    
+
     // 加载 PDF 文档
     await loadPdfDocument(pdfFile);
     setLoading(false);
   };
 
-  // 全局拖拽处理 - dragOver
-  const handleDragOver = useCallback((e: React.DragEvent | DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
+  // 处理拖拽文件（过滤 PDF）
+  const handleDragFiles = (files: File[]) => {
+    const validPdfFiles = files.filter(isPdfFile);
+    if (validPdfFiles.length > 0) {
+      void handleFilesSelected(validPdfFiles);
+    } else {
+      setError('请选择 PDF 文件');
+    }
+  };
 
-  // 全局拖拽处理 - dragLeave
-  const handleDragLeave = useCallback((e: React.DragEvent | DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  // 全局拖拽处理 - drop
-  const handleDrop = useCallback((e: React.DragEvent | DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    
-    const items = (e as any).dataTransfer?.items;
-    let filesToProcess: File[] = [];
-    
-    if (items && items.length > 0) {
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].kind === 'file') {
-          const file = items[i].getAsFile();
-          if (file) {
-            filesToProcess.push(file);
-          }
-        }
-      }
-    }
-    
-    if (filesToProcess.length === 0 && (e as any).dataTransfer?.files.length > 0) {
-      filesToProcess = Array.from((e as any).dataTransfer.files);
-    }
-    
-    if (filesToProcess.length > 0) {
-      const validPdfFiles = filesToProcess.filter(isPdfFile);
-      if (validPdfFiles.length > 0) {
-        handleFilesSelected(validPdfFiles);
-      } else if (filesToProcess.length > 0) {
-        setError('请选择 PDF 文件');
-      }
-    }
-  }, []);
-
-  // 添加全局拖拽事件监听
-  useEffect(() => {
-    if (!currentPdfFile) {
-      const handleNativeDragOver = (e: DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(true);
-      };
-      
-      const handleNativeDragLeave = (e: DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-      };
-      
-      const handleNativeDrop = (e: DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-        
-        const filesToProcess = Array.from(e.dataTransfer.files);
-        if (filesToProcess.length > 0) {
-          const validPdfFiles = filesToProcess.filter(isPdfFile);
-          if (validPdfFiles.length > 0) {
-            handleFilesSelected(validPdfFiles);
-          } else if (filesToProcess.length > 0) {
-            setError('请选择 PDF 文件');
-          }
-        }
-      };
-      
-      window.addEventListener('dragover', handleNativeDragOver);
-      window.addEventListener('dragleave', handleNativeDragLeave);
-      window.addEventListener('drop', handleNativeDrop);
-      
-      return () => {
-        window.removeEventListener('dragover', handleNativeDragOver);
-        window.removeEventListener('dragleave', handleNativeDragLeave);
-        window.removeEventListener('drop', handleNativeDrop);
-      };
-    }
-  }, [currentPdfFile]);
+  // 使用通用的拖拽处理 Hook
+  const { isDragging, dragHandlers } = useDragDrop(handleDragFiles);
 
   // 加载 PDF 文档
   const loadPdfDocument = async (file: File) => {
@@ -199,23 +118,23 @@ export default function PdfPage() {
   // 渲染指定页面
   const renderPage = async (pageNum: number, doc: any = pdfDoc) => {
     if (!doc || !canvasRef.current) return;
-    
+
     try {
       const page = await doc.getPage(pageNum);
       const viewport = page.getViewport({ scale: pageScale });
-      
+
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
       if (!context) return;
-      
+
       canvas.height = viewport.height;
       canvas.width = viewport.width;
-      
+
       const renderContext = {
         canvasContext: context,
         viewport: viewport
       };
-      
+
       await page.render(renderContext).promise;
       setCurrentPage(pageNum);
     } catch (err) {
@@ -227,14 +146,14 @@ export default function PdfPage() {
   // 上一页
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      renderPage(currentPage - 1);
+      void renderPage(currentPage - 1);
     }
   };
 
   // 下一页
   const handleNextPage = () => {
     if (currentPage < totalPages) {
-      renderPage(currentPage + 1);
+      void renderPage(currentPage + 1);
     }
   };
 
@@ -243,11 +162,11 @@ export default function PdfPage() {
     const result: number[] = [];
     // 同时兼容英文逗号和中文逗号
     const parts = input.replace(/，/g, ',').split(',');
-    
+
     for (const part of parts) {
       const trimmed = part.trim();
       if (!trimmed) continue;
-      
+
       if (trimmed.includes('-')) {
         const [start, end] = trimmed.split('-').map(s => parseInt(s.trim()));
         if (!isNaN(start) && !isNaN(end)) {
@@ -264,7 +183,7 @@ export default function PdfPage() {
         }
       }
     }
-    
+
     // 去重并排序
     return [...new Set(result)].sort((a, b) => a - b);
   };
@@ -272,44 +191,44 @@ export default function PdfPage() {
   // 转换并下载
   const handleConvertAndDownload = async () => {
     if (!pdfDoc || !currentPdfFile) return;
-    
+
     const pages = parsePageRange(pageRangeInput);
     if (pages.length === 0) {
       setError('请输入有效的页面范围');
       return;
     }
-    
+
     setConverting(true);
-    
+
     try {
       const baseName = currentPdfFile.name.replace(/\.pdf$/i, '');
       const quality = parseInt(downloadQuality) / 100;
-      
+
       // 创建临时画布进行渲染
       const tempCanvas = document.createElement('canvas');
-      
+
       for (let i = 0; i < pages.length; i++) {
         const pageNum = pages[i];
         const page = await pdfDoc.getPage(pageNum);
         const viewport = page.getViewport({ scale: pageScale });
-        
+
         tempCanvas.width = viewport.width;
         tempCanvas.height = viewport.height;
-        
+
         const context = tempCanvas.getContext('2d');
         if (!context) continue;
-        
+
         const renderContext = {
           canvasContext: context,
           viewport: viewport
         };
-        
+
         await page.render(renderContext).promise;
-        
+
         // 生成数据 URL
         let dataUrl: string;
         let ext: string;
-        
+
         switch (downloadFormat) {
           case 'jpeg':
             dataUrl = tempCanvas.toDataURL('image/jpeg', quality);
@@ -323,23 +242,23 @@ export default function PdfPage() {
             dataUrl = tempCanvas.toDataURL('image/png');
             ext = '.png';
         }
-        
+
         // 下载单页
-        const filename = pages.length === 1 
-          ? `${baseName}${ext}` 
+        const filename = pages.length === 1
+          ? `${baseName}${ext}`
           : `${baseName}_page${pageNum}${ext}`;
-        
+
         const link = document.createElement('a');
         link.href = dataUrl;
         link.download = filename;
         link.click();
-        
+
         // 添加小延迟避免浏览器阻止多次下载
         if (i < pages.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 150));
         }
       }
-      
+
       setShowDownloadModal(false);
     } catch (err) {
       console.error('转换失败:', err);
@@ -363,13 +282,11 @@ export default function PdfPage() {
   };
 
   return (
-    <div 
+    <div
       className={`flex flex-col min-h-screen bg-background text-foreground transition-colors duration-200 ${
         isDragging && !currentPdfFile ? 'bg-primary/5' : ''
       }`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      {...dragHandlers}
     >
       {/* 全局拖拽指示器 */}
       {isDragging && !currentPdfFile && (
@@ -408,7 +325,7 @@ export default function PdfPage() {
                   选择或拖拽一个 PDF 文件进行转换
                 </p>
               </div>
-              
+
               {/* 自定义上传区域，提示文字改为PDF相关 */}
               <div className="relative flex flex-col items-center justify-center w-full border-2 border-dashed rounded-lg cursor-pointer transition-colors duration-200 h-48 hover:border-primary/50 hover:bg-muted/50">
                 <input
@@ -419,7 +336,7 @@ export default function PdfPage() {
                     if (files && files.length > 0) {
                       const validFiles = Array.from(files).filter(isPdfFile);
                       if (validFiles.length > 0) {
-                        handleFilesSelected(validFiles);
+                        void handleFilesSelected(validFiles);
                       }
                     }
                     e.target.value = '';
@@ -434,7 +351,7 @@ export default function PdfPage() {
                   <p className="text-xs">或点击选择文件</p>
                 </div>
               </div>
-              
+
               {error && (
                 <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600">
                   {error}
@@ -466,7 +383,7 @@ export default function PdfPage() {
                     >
                       ‹
                     </button>
-                    <span className="text-sm text-muted-foreground min-w-[80px] text-center">
+                    <span className="text-sm text-muted-foreground min-w-20 text-center">
                       {currentPage} / {totalPages}
                     </span>
                     <button
@@ -552,7 +469,7 @@ export default function PdfPage() {
                   <option value="webp">WebP - Google 格式</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">图片质量 (1-100)</label>
                 <select
@@ -567,7 +484,7 @@ export default function PdfPage() {
                   <option value="50">低 (50%)</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">页面范围</label>
                 <input
