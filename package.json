@@ -7,9 +7,9 @@
   "author": "web-img Team",
   "license": "MIT",
   "scripts": {
-    "dev": "next dev -p 8527",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start -p 8527",
+    "start": "next start",
     "lint": "eslint",
     "preview": "npx serve out"
   },

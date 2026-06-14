@@ -138,6 +138,8 @@ export interface Translations {
   imageEffects: string;
   rgbAdjustments: string;
   ale160Link: string;
+  githubRepo: string;
+  sponsor: string;
   pinGroup: string;
   pinGroupDesc: string;
 }
@@ -276,6 +278,8 @@ export const zhStrings: Record<keyof Translations, string> = {
   imageEffects: '图像效果',
   rgbAdjustments: 'RGB 通道微调',
   ale160Link: '阿乐一百六',
+  githubRepo: 'GitHub 仓库',
+  sponsor: '赞赏支持',
   pinGroup: '固定分组',
   pinGroupDesc: '将该分组内所有预设批量固定，替换「固定」分组中现有内容。原固定预设将被移除。',
 };
@@ -414,6 +418,8 @@ export const enStrings: Record<keyof Translations, string> = {
   imageEffects: 'Image Effects',
   rgbAdjustments: 'RGB Adjustments',
   ale160Link: 'ale160',
+  githubRepo: 'GitHub Repo',
+  sponsor: 'Sponsor',
   pinGroup: 'Pin Group',
   pinGroupDesc: 'Pin all presets in this group, replacing the current pinned presets. Existing pinned presets will be removed.',
 };
