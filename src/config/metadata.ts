@@ -27,7 +27,7 @@ export const METADATA_ZH = {
   openGraph: {
     title: "web-img · 在线图片处理工具",
     description: "纯前端在线图片处理工具箱，支持压缩、水印、格式转换。所有图片本地处理，保护隐私。",
-    url: "https://web-img.ale160.com",
+    url: "https://web-img.ale160.com/zh/",
     siteName: "web-img 官方网站",
     locale: "zh_CN",
     type: "website",
@@ -48,10 +48,10 @@ export const METADATA_ZH = {
     creator: "@ale160"
   },
   alternates: {
-    canonical: "https://web-img.ale160.com",
+    canonical: "https://web-img.ale160.com/zh/",
     languages: {
-      "en": "https://web-img.ale160.com",
-      "zh-CN": "https://web-img.ale160.com",
+      "en": "https://web-img.ale160.com/",
+      "zh-CN": "https://web-img.ale160.com/zh/"
     }
   }
 };
@@ -83,7 +83,7 @@ export const METADATA_EN = {
   openGraph: {
     title: "web-img · Online Image Tool",
     description: "A privacy-focused online image toolbox with compression, watermark, and format conversion. All images processed locally.",
-    url: "https://web-img.ale160.com",
+    url: "https://web-img.ale160.com/",
     siteName: "web-img Official Website",
     locale: "en_US",
     type: "website",
@@ -104,12 +104,40 @@ export const METADATA_EN = {
     creator: "@ale160"
   },
   alternates: {
-    canonical: "https://web-img.ale160.com",
+    canonical: "https://web-img.ale160.com/",
     languages: {
-      "en": "https://web-img.ale160.com",
-      "zh-CN": "https://web-img.ale160.com",
+      "en": "https://web-img.ale160.com/",
+      "zh-CN": "https://web-img.ale160.com/zh/"
     }
   }
+};
+
+// PDF 页面元数据
+export const PDF_METADATA_ZH = {
+  title: "web-img · PDF 转图片 - 在线 PDF 转换工具",
+  description: "免费在线 PDF 转图片工具，支持将 PDF 页面转换为 PNG、JPEG、WebP 格式。多页批量转换，高分辨率渲染，纯前端本地处理，保护隐私。",
+  keywords: [
+    "PDF转图片",
+    "PDF转换",
+    "PDF to Image",
+    "PDF to PNG",
+    "PDF to JPEG",
+    "在线PDF工具",
+    "web-img",
+  ],
+};
+
+export const PDF_METADATA_EN = {
+  title: "web-img · PDF to Image - Online PDF Converter",
+  description: "Free online PDF to image converter. Convert PDF pages to PNG, JPEG, or WebP format. Batch conversion, high resolution rendering, all processed locally for privacy.",
+  keywords: [
+    "PDF to image",
+    "PDF converter",
+    "PDF to PNG",
+    "PDF to JPEG",
+    "online PDF tool",
+    "web-img",
+  ],
 };
 
 export function getMetadata(lang: string = "en"): Metadata {
@@ -139,6 +167,53 @@ export function getMetadata(lang: string = "en"): Metadata {
       "max-video-preview": -1,
     },
     alternates: metadata.alternates,
+  };
+}
+
+export function getPdfMetadata(lang: string = "en"): Metadata {
+  const pdfMeta = lang === "en" ? PDF_METADATA_EN : PDF_METADATA_ZH;
+  const base = lang === "en" ? METADATA_EN : METADATA_ZH;
+
+  return {
+    title: pdfMeta.title,
+    description: pdfMeta.description,
+    keywords: pdfMeta.keywords,
+    authors: base.authors,
+    creator: base.creator,
+    publisher: base.publisher,
+    icons: {
+      icon: "https://ale160.com/favicon.ico",
+    },
+    formatDetection: {
+      email: false,
+      telephone: false,
+    },
+    openGraph: {
+      ...base.openGraph,
+      title: pdfMeta.title,
+      description: pdfMeta.description,
+      url: lang === "en" ? "https://web-img.ale160.com/pdf/" : "https://web-img.ale160.com/zh/pdf/",
+      locale: lang === "en" ? "en_US" : "zh_CN",
+    },
+    twitter: {
+      ...base.twitter,
+      title: pdfMeta.title,
+      description: pdfMeta.description,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+    alternates: {
+      canonical: lang === "en" ? "https://web-img.ale160.com/pdf/" : "https://web-img.ale160.com/zh/pdf/",
+      languages: {
+        "en": "https://web-img.ale160.com/pdf/",
+        "zh-CN": "https://web-img.ale160.com/zh/pdf/",
+      },
+    },
   };
 }
 

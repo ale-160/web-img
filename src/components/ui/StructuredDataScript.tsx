@@ -1,8 +1,8 @@
 import React from "react";
 import { getStructuredData } from "@/config/structuredData";
 
-export function StructuredDataScript() {
-  const data = getStructuredData("en");
+export function StructuredDataScript({ lang = "en" }: { lang?: string }) {
+  const data = getStructuredData(lang);
 
   return (
     <>

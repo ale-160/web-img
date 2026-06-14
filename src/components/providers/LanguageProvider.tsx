@@ -13,8 +13,8 @@ function getBrowserLanguage(): Language {
   return 'en';
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>('en');
+export function LanguageProvider({ children, defaultLang }: { children: ReactNode; defaultLang?: Language }) {
+  const [language, setLanguage] = useState<Language>(defaultLang ?? 'en');
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -22,10 +22,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (saved === 'en' || saved === 'zh') {
       setLanguage(saved as Language);
     } else {
-      setLanguage(getBrowserLanguage());
+      // 优先使用路由传入的 defaultLang，其次浏览器检测
+      setLanguage(defaultLang ?? getBrowserLanguage());
     }
     setIsMounted(true);
-  }, []);
+  }, [defaultLang]);
 
   useEffect(() => {
     if (isMounted) {
