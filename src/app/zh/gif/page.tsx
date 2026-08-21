@@ -1,16 +1,16 @@
-import MainPage from '@/components/layout/MainPage';
+import GifMakerPage from '@/components/layout/GifMakerPage';
 import { Metadata } from 'next';
-import { getMetadata } from '@/config/metadata';
+import { getGifMakerMetadata } from '@/config/metadata';
 import { StructuredDataScript } from '@/components/ui/StructuredDataScript';
 import { ClientProviders } from '@/components/providers/ClientProviders';
 
-export const metadata: Metadata = getMetadata('zh');
+export const metadata: Metadata = getGifMakerMetadata('zh');
 
-export default function ZhPage() {
+export default function GifZhPage() {
   return (
     <ClientProviders lang="zh">
       <StructuredDataScript lang="zh" />
-      <MainPage lang="zh" />
+      <GifMakerPage lang="zh" />
     </ClientProviders>
   );
 }

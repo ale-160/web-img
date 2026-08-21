@@ -1,16 +1,16 @@
-import MainPage from '@/components/layout/MainPage';
+import ConvertMainPage from '@/components/layout/ConvertMainPage';
 import { Metadata } from 'next';
-import { getMetadata } from '@/config/metadata';
+import { getConvertMetadata } from '@/config/metadata';
 import { StructuredDataScript } from '@/components/ui/StructuredDataScript';
 import { ClientProviders } from '@/components/providers/ClientProviders';
 
-export const metadata: Metadata = getMetadata('zh');
+export const metadata: Metadata = getConvertMetadata('zh');
 
-export default function ZhPage() {
+export default function ZhConvertPage() {
   return (
     <ClientProviders lang="zh">
       <StructuredDataScript lang="zh" />
-      <MainPage lang="zh" />
+      <ConvertMainPage lang="zh" />
     </ClientProviders>
   );
 }

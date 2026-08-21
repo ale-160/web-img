@@ -1,16 +1,16 @@
-import PdfMainPage from '@/components/layout/PdfMainPage';
+import GifMakerPage from '@/components/layout/GifMakerPage';
 import { Metadata } from 'next';
-import { getPdfMetadata } from '@/config/metadata';
+import { getGifMakerMetadata } from '@/config/metadata';
 import { StructuredDataScript } from '@/components/ui/StructuredDataScript';
 import { ClientProviders } from '@/components/providers/ClientProviders';
 
-export const metadata: Metadata = getPdfMetadata('en');
+export const metadata: Metadata = getGifMakerMetadata('en');
 
-export default function PdfPage() {
+export default function GifPage() {
   return (
     <ClientProviders lang="en">
       <StructuredDataScript lang="en" />
-      <PdfMainPage lang="en" />
+      <GifMakerPage lang="en" />
     </ClientProviders>
   );
 }
