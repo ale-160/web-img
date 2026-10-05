@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Ale OS 数据迁移助手</title>
+</head>
+<body style="font-family:system-ui,sans-serif;color:#666;padding:24px">
+<p>Ale OS 迁移助手运行中（web-img）——请在 os.ale160.com/migrate 页面操作，此页面请保持打开。</p>
+<script>
+(function () {
+  var APP = 'web-img';
+  var ALLOWED_ORIGINS = ['https://os.ale160.com', 'http://localhost:4200'];
+  var LOCAL_KEYS = ['web-img-theme', 'web-img-language', 'web-img-size-presets', 'web-img-export-formats', 'web-img-preset-groups'];
+  window.addEventListener('message', function (event) {
+    if (ALLOWED_ORIGINS.indexOf(event.origin) === -1) return;
+    var data = event.data || {};
+    if (data.type !== 'ale-migrate-request' || !data.requestId) return;
+    var payload = { localStorage: {}, idb: null };
+    LOCAL_KEYS.forEach(function (key) {
+      var value = localStorage.getItem(key);
+      if (value !== null) payload.localStorage[key] = value;
+    });
+    event.source.postMessage(
+      { type: 'ale-migrate-data', requestId: data.requestId, app: APP, payload: payload },
+      event.origin
+    );
+  });
+})();
+</script>
+</body>
+</html>
