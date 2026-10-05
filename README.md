@@ -1,3 +1,5 @@
+> **⚠️ 本项目已停止维护**：web-img 已作为应用融合进 [Ale OS](https://github.com/ale-160/os-open)（https://os.ale160.com/img/ ）。本站将服务至 **2026-11-03**，之后下线；预设配置可在 https://os.ale160.com/migrate 一键迁移。
+
 # web-img
 
 一个纯前端的在线图片处理工具箱，所有图片在浏览器本地处理，不会上传到服务器，保护您的隐私。
